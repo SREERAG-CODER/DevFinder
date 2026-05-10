@@ -4,9 +4,47 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DevFinder</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #edf3df;
+            gap: 20px;
+        }
+        h1 { font-size: 48px; color: #1d1d1d; }
+        p  { color: #666; font-size: 18px; }
+        .btn-group { display: flex; gap: 14px; margin-top: 10px; }
+        .btn {
+            padding: 14px 32px;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #94c94f, #79ad3b);
+            color: white;
+        }
+        .btn-outline {
+            background: rgba(255,255,255,0.5);
+            border: 2px solid rgba(140,190,90,0.3);
+            color: #555;
+        }
+    </style>
 </head>
 <body>
-    <button onclick="window.location.href='Authentication/login.html'">Login</button>
-    
+    <h1>🤝 DevFinder</h1>
+    <p>Find your perfect hackathon team</p>
+    <div class="btn-group">
+        <a href="../Authentication/login.html" class="btn btn-primary">Login</a>
+        <a href="../Authentication/signup.html" class="btn btn-outline">Sign Up</a>
+    </div>
 </body>
 </html>
