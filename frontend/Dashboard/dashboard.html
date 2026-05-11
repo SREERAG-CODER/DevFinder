@@ -20,13 +20,13 @@
   </div>
 
   <div class="nav-section">
-    <div class="nav-item active" onclick="setActive(this)">
+    <div class="nav-item active" onclick="setActive(this, 'all')">
       <i class="fa-solid fa-house"></i> Dashboard
     </div>
-    <div class="nav-item" onclick="setActive(this)">
+    <div class="nav-item" onclick="setActive(this, 'joined')">
       <i class="fa-solid fa-users"></i> My Teams
     </div>
-    <div class="nav-item" onclick="setActive(this)">
+    <div class="nav-item" onclick="setActive(this, 'hosted')">
       <i class="fa-solid fa-list-check"></i> My Hosted
     </div>
   </div>
@@ -135,6 +135,28 @@
 
     <div id="modal-error"></div>
     <button class="submit-btn" onclick="submitHost()">CREATE TEAM</button>
+  </div>
+</div>
+
+<!-- APPLY MODAL -->
+<div class="modal-overlay" id="apply-modal">
+  <div class="modal apply-modal">
+    <div class="modal-title">APPLY FOR TEAM</div>
+    <button class="modal-close" onclick="closeApplyModal()">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+
+    <div class="field">
+      <label>Select Role</label>
+      <select id="a-role"></select>
+    </div>
+    <div class="field">
+      <label>Message / Portfolio</label>
+      <textarea id="a-message" placeholder="Why should you be part of this team? Share links to your work."></textarea>
+    </div>
+
+    <div id="apply-modal-error"></div>
+    <button class="submit-btn" id="apply-submit-btn" onclick="submitApply()">SUBMIT APPLICATION</button>
   </div>
 </div>
 

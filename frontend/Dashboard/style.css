@@ -282,3 +282,5 @@ body{font-family:'Space Grotesk',sans-serif;background:var(--yellow);display:fle
   color:var(--red);font-size:12px;
   font-weight:600;margin-bottom:8px;display:none;
 }
+#apply-modal-error{color:var(--red2);font-size:12px;font-weight:700;margin-bottom:12px;display:none;}
+.field select{width:100%;padding:12px 16px;border:var(--border);border-radius:12px;font-family:'Space Grotesk',sans-serif;font-size:13px;color:var(--dark);background:var(--white);outline:none;cursor:pointer;}

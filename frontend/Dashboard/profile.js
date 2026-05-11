@@ -233,27 +233,115 @@ if (savedAvatar) {
 }
 
 // ── Hosted teams ─────────────────────────────────────────
-function renderHosted() {
+async function renderHosted() {
   const grid = document.getElementById('hosted-grid');
-  // Pull hosted teams from localStorage (set by dashboard.js when creating)
-  const hosted = JSON.parse(localStorage.getItem('hostedTeams') || '[]');
-  if (!hosted.length) {
-    grid.innerHTML = `
-      <div class="empty-hosted">
-        <i class="fa-solid fa-layer-group"></i>
-        No hosted teams yet
-      </div>`;
-    return;
+  
+  try {
+    // Fetch teams created by the user from the backend
+    const res = await fetch(`${API}/teams`);
+    const allTeams = await res.json();
+    if (!res.ok) throw new Error(allTeams.error);
+
+    // Filter teams created by the current user
+    const hosted = allTeams.filter(t => t.created_by === user.id);
+
+    if (!hosted.length) {
+      grid.innerHTML = `
+        <div class="empty-hosted">
+          <i class="fa-solid fa-layer-group"></i>
+          No hosted teams yet
+        </div>`;
+      return;
+    }
+
+    grid.innerHTML = hosted.map(t => `
+      <div class="hosted-card">
+        <div class="hosted-icon"><i class="fa-solid fa-trophy"></i></div>
+        <div class="hosted-info">
+          <div class="hosted-name">${t.name}</div>
+          <div class="hosted-meta">${(t.roles || []).join(' · ')} · Deadline ${t.deadline || 'TBD'}</div>
+        </div>
+        <button class="view-applicants-btn" onclick="viewApplicants(${t.id}, '${t.name.replace(/'/g, "\\'")}')">
+          VIEW APPLICANTS
+        </button>
+      </div>`).join('');
+  } catch (err) {
+    console.error("Failed to load hosted teams:", err);
+    grid.innerHTML = `<div class="empty-hosted">Error loading teams</div>`;
   }
-  grid.innerHTML = hosted.map(t => `
-    <div class="hosted-card">
-      <div class="hosted-icon"><i class="fa-solid fa-trophy"></i></div>
-      <div class="hosted-info">
-        <div class="hosted-name">${t.name}</div>
-        <div class="hosted-meta">${t.roles ? t.roles.join(' · ') : ''} · Deadline ${t.deadline || 'TBD'}</div>
-      </div>
-      <div class="hosted-badge">${t.slots || '4|4'}</div>
-    </div>`).join('');
+}
+
+// ── Applicant Management ─────────────────────────────────
+function closeApplicantsModal() {
+  document.getElementById('applicants-modal').classList.remove('open');
+}
+
+async function viewApplicants(teamId, teamName) {
+  document.getElementById('m-team-name').textContent = `APPLICANTS: ${teamName}`;
+  const list = document.getElementById('applicant-list');
+  list.innerHTML = '<div class="empty-hosted">Loading...</div>';
+  document.getElementById('applicants-modal').classList.add('open');
+
+  try {
+    const res = await fetch(`${API}/applications/team/${teamId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    if (!data.length) {
+      list.innerHTML = '<div class="empty-hosted">No applicants yet</div>';
+      return;
+    }
+
+    list.innerHTML = data.map(a => `
+      <div class="applicant-card">
+        <div class="applicant-head">
+          <div>
+            <div class="applicant-name">${a.applicant_name}</div>
+            <div class="profile-email">${a.applicant_email}</div>
+          </div>
+          <div class="applicant-role-badge">${a.role}</div>
+        </div>
+        <div class="applicant-msg">${a.message || 'No message provided.'}</div>
+        <div class="applicant-actions" id="actions-${a.id}">
+          ${a.status === 'pending' ? `
+            <button class="action-btn accept-btn" onclick="updateAppStatus(${a.id}, 'accepted')">ACCEPT</button>
+            <button class="action-btn reject-btn" onclick="updateAppStatus(${a.id}, 'rejected')">REJECT</button>
+          ` : `
+            <div class="status-badge status-${a.status}">${a.status.toUpperCase()}</div>
+          `}
+        </div>
+      </div>`).join('');
+
+  } catch (err) {
+    list.innerHTML = `<div class="empty-hosted">Error: ${err.message}</div>`;
+  }
+}
+
+async function updateAppStatus(appId, status) {
+  const container = document.getElementById(`actions-${appId}`);
+  const oldContent = container.innerHTML;
+  container.innerHTML = '<div class="profile-email">Updating...</div>';
+
+  try {
+    const res = await fetch(`${API}/applications/${appId}/status`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ status })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    container.innerHTML = `<div class="status-badge status-${status}">${status.toUpperCase()}</div>`;
+    showToast(`Application ${status}!`);
+  } catch (err) {
+    container.innerHTML = oldContent;
+    showToast('Error: ' + err.message);
+  }
 }
 
 // ── Init ─────────────────────────────────────────────────

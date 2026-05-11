@@ -24,9 +24,18 @@ function toggleSidebar() {
   bg.style.left    = sidebarOpen ? '270px' : '0px';
 }
 
-function setActive(el) {
+function setActive(el, type = 'all') {
   document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
   el.classList.add('active');
+  
+  if (type === 'all') {
+    renderCards(allTeams);
+  } else if (type === 'hosted') {
+    renderCards(allTeams.filter(t => t.created_by === user.id));
+  } else if (type === 'joined') {
+    // This would require a joined_teams fetch, for now showing empty
+    renderCards([]);
+  }
 }
 
 function logout() {
@@ -74,7 +83,9 @@ function renderCards(teams) {
           <div class="dl-label">Deadline</div>
           <div class="dl-date">${formatDate(t.deadline)}</div>
         </div>
-        <button class="apply-btn">APPLY <i class="fa-solid fa-arrow-right"></i></button>
+        <button class="apply-btn" onclick="openApplyModal(${t.id}, '${t.name.replace(/'/g, "\\'")}', ${JSON.stringify(t.roles).replace(/"/g, '&quot;')})">
+          APPLY <i class="fa-solid fa-arrow-right"></i>
+        </button>
       </div>
     </div>`).join('');
 }
@@ -109,6 +120,77 @@ function closeModal() { document.getElementById('modal').classList.remove('open'
 document.getElementById('modal').addEventListener('click', e => {
   if (e.target === document.getElementById('modal')) closeModal();
 });
+
+document.getElementById('apply-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('apply-modal')) closeApplyModal();
+});
+
+let currentApplyTeamId = null;
+
+function openApplyModal(teamId, teamName, roles) {
+  currentApplyTeamId = teamId;
+  const modal = document.getElementById('apply-modal');
+  const roleSelect = document.getElementById('a-role');
+  
+  // Fill roles
+  roleSelect.innerHTML = roles.map(r => `<option value="${r}">${r}</option>`).join('');
+  if (!roles.length) roleSelect.innerHTML = '<option value="General">General Member</option>';
+
+  modal.querySelector('.modal-title').textContent = `APPLY FOR: ${teamName}`;
+  modal.classList.add('open');
+}
+
+function closeApplyModal() {
+  document.getElementById('apply-modal').classList.remove('open');
+  document.getElementById('apply-modal-error').style.display = 'none';
+  document.getElementById('a-message').value = '';
+}
+
+function submitApply() {
+  const role    = document.getElementById('a-role').value;
+  const message = document.getElementById('a-message').value.trim();
+  const btn     = document.getElementById('apply-submit-btn');
+  const errorEl = document.getElementById('apply-modal-error');
+
+  errorEl.style.display = 'none';
+  if (!message) {
+    errorEl.textContent = 'Please add a short message or portfolio link';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  const oldText = btn.textContent;
+  btn.textContent = 'SUBMITTING...';
+  btn.disabled = true;
+
+  fetch(`${API}/applications`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      team_id: currentApplyTeamId,
+      role: role,
+      message: message
+    })
+  })
+  .then(res => res.json().then(data => ({ ok: res.ok, data })))
+  .then(({ ok, data }) => {
+    if (!ok) throw new Error(data.error || 'Failed to submit application');
+    
+    alert('Application submitted successfully! ✅');
+    closeApplyModal();
+  })
+  .catch(err => {
+    errorEl.textContent = err.message;
+    errorEl.style.display = 'block';
+  })
+  .finally(() => {
+    btn.textContent = oldText;
+    btn.disabled = false;
+  });
+}
 
 function addRole() {
   const builder = document.getElementById('roles-builder');
@@ -147,7 +229,7 @@ function submitHost() {
   const desc     = document.getElementById('f-desc').value.trim();
   const tech     = document.getElementById('f-tech').value.trim().split(',').map(s => s.trim()).filter(Boolean);
 
-  const btn = document.querySelector('.modal-foot .primary');
+  const btn = document.querySelector('#modal .submit-btn');
   const oldText = btn.textContent;
   btn.textContent = 'HOSTING...';
   btn.disabled = true;
