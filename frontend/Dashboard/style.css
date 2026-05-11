@@ -284,3 +284,121 @@ body{font-family:'Space Grotesk',sans-serif;background:var(--yellow);display:fle
 }
 #apply-modal-error{color:var(--red2);font-size:12px;font-weight:700;margin-bottom:12px;display:none;}
 .field select{width:100%;padding:12px 16px;border:var(--border);border-radius:12px;font-family:'Space Grotesk',sans-serif;font-size:13px;color:var(--dark);background:var(--white);outline:none;cursor:pointer;}
+
+.manage-btn{
+  background:var(--pink);border:var(--border);
+  border-radius:100px;padding:8px 12px;
+  font-family:'Space Grotesk',sans-serif;
+  font-size:9px;font-weight:800;letter-spacing:1px;
+  color:var(--white);cursor:pointer;transition:all .2s;
+  display:flex;align-items:center;gap:5px;
+  box-shadow:2px 2px 0 var(--black);white-space:nowrap;
+}
+.manage-btn:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--black)}
+
+/* ── REQUESTS MODAL ── */
+.requests-modal{width:600px;}
+.request-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px;background:var(--gray);border:2px solid var(--black);
+  border-radius:14px;margin-bottom:12px;gap:12px;
+}
+.req-left{display:flex;align-items:center;gap:12px;cursor:pointer;flex:1;}
+.req-avatar{width:40px;height:40px;border-radius:50%;background:var(--white);border:2px solid var(--black);display:flex;align-items:center;justify-content:center;font-size:16px;color:#aaa;}
+.req-info .req-name{font-size:14px;font-weight:700;color:var(--black);}
+.req-info .req-role{font-size:10px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:1px;}
+.req-message{font-size:12px;color:var(--dark);margin-top:4px;font-style:italic;}
+
+.req-actions{display:flex;gap:8px;}
+.req-btn{
+  padding:6px 12px;border:2px solid var(--black);border-radius:100px;
+  font-size:10px;font-weight:800;cursor:pointer;transition:all .2s;
+  box-shadow:2px 2px 0 var(--black);
+}
+.req-btn:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--black)}
+.req-btn.accept{background:var(--green);color:var(--black);}
+.req-btn.reject{background:var(--red);color:var(--white);}
+
+/* ── PROFILE MODAL ── */
+.user-profile-modal{width:400px;text-align:center;}
+.profile-view-avatar{width:80px;height:80px;border-radius:50%;background:var(--gray);border:var(--border);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:32px;color:#888;}
+.profile-view-name{font-family:'Bebas Neue',sans-serif;font-size:32px;color:var(--black);margin-bottom:4px;}
+.profile-view-email{font-size:12px;color:#666;margin-bottom:16px;}
+.profile-view-bio{font-size:14px;color:var(--dark);margin-bottom:20px;line-height:1.4;font-style:italic;}
+.profile-view-skills{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-bottom:20px;}
+.skill-tag{padding:4px 10px;background:var(--yellow);border:2px solid var(--black);border-radius:6px;font-size:10px;font-weight:700;}
+.profile-view-links{display:flex;justify-content:center;gap:12px;}
+.profile-link{
+  width:36px;height:36px;border-radius:50%;background:var(--black);
+  color:var(--white);display:flex;align-items:center;justify-content:center;
+  font-size:16px;text-decoration:none;transition:transform .2s;
+}
+.profile-link:hover{transform:scale(1.1);}
+
+/* ── TEAM ROSTER (MY TEAMS) ── */
+.team-roster{
+  background:rgba(0,0,0,0.03);
+  border:2px solid var(--black);
+  border-radius:12px;
+  padding:10px;
+  margin-top:10px;
+}
+.roster-label{
+  font-size:8px;font-weight:800;letter-spacing:1px;
+  color:#888;margin-bottom:8px;
+}
+.member-row{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.05);
+  cursor:pointer;transition:background .2s;
+}
+.member-row:last-child{border-bottom:none}
+.member-row:hover{background:rgba(0,0,0,0.02)}
+.member-dot{width:6px;height:6px;border-radius:50%;background:var(--green2);border:1px solid var(--black);}
+.member-name{font-size:11px;font-weight:700;color:var(--black);flex:1}
+.member-role-tag{
+  font-size:8px;font-weight:700;padding:2px 6px;
+  background:var(--white);border:1.5px solid var(--black);
+  border-radius:100px;text-transform:uppercase;
+}
+.my-team-card{width:300px;}
+
+/* ── CHAT MODAL ── */
+.chat-modal{
+  width:400px;height:550px;display:flex;flex-direction:column;
+  padding:0;overflow:hidden;
+}
+.chat-header{
+  padding:20px;background:var(--black);color:var(--white);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.chat-team-name{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;}
+.chat-status{font-size:9px;color:var(--green);text-transform:uppercase;font-weight:800;letter-spacing:1.5px;}
+
+.chat-messages{
+  flex:1;padding:20px;overflow-y:auto;
+  display:flex;flex-direction:column;gap:12px;
+  background:#f9f9f9;
+}
+.msg{max-width:80%;padding:10px 14px;border-radius:14px;font-size:13px;line-height:1.4;position:relative;}
+.msg.sent{align-self:flex-end;background:var(--yellow);border:2px solid var(--black);box-shadow:3px 3px 0 rgba(0,0,0,0.1);}
+.msg.received{align-self:flex-start;background:var(--white);border:2px solid var(--black);box-shadow:3px 3px 0 rgba(0,0,0,0.05);}
+
+.msg-sender{font-size:9px;font-weight:800;text-transform:uppercase;margin-bottom:4px;color:#888;}
+.msg.sent .msg-sender{color:var(--black);text-align:right;}
+
+.chat-input-area{
+  padding:16px;background:var(--white);border-top:var(--border);
+  display:flex;gap:10px;
+}
+.chat-input-area input{
+  flex:1;padding:12px 16px;border:var(--border);border-radius:100px;
+  font-family:'Space Grotesk',sans-serif;font-size:13px;outline:none;
+}
+.chat-input-area button{
+  width:46px;height:46px;border-radius:50%;background:var(--black);
+  color:var(--white);border:none;cursor:pointer;font-size:16px;
+  transition:transform .2s;
+}
+.chat-input-area button:hover{transform:scale(1.05);}
+

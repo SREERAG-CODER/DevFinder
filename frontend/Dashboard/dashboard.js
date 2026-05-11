@@ -1,6 +1,7 @@
 const API   = 'http://127.0.0.1:5000/api';
 const token = localStorage.getItem('token');
 const user  = JSON.parse(localStorage.getItem('user') || 'null');
+const socket = io('http://127.0.0.1:5000');
 
 // ── Auth guard ───────────────────────────────────────────
 if (!token || !user) window.location.href = '../Authentication/login.html';
@@ -31,10 +32,9 @@ function setActive(el, type = 'all') {
   if (type === 'all') {
     renderCards(allTeams);
   } else if (type === 'hosted') {
-    renderCards(allTeams.filter(t => t.created_by === user.id));
+    renderHostedCards(allTeams.filter(t => t.created_by === user.id));
   } else if (type === 'joined') {
-    // This would require a joined_teams fetch, for now showing empty
-    renderCards([]);
+    fetchMyTeams();
   }
 }
 
@@ -89,6 +89,180 @@ function renderCards(teams) {
       </div>
     </div>`).join('');
 }
+
+function renderHostedCards(teams) {
+  const row = document.getElementById('cards-row');
+  if (!teams.length) {
+    row.innerHTML = `<p style="font-size:14px;font-weight:600;color:rgba(0,0,0,0.4);margin-top:8px">
+      You haven't hosted any teams yet.</p>`;
+    return;
+  }
+  row.innerHTML = teams.map(t => `
+    <div class="team-card">
+      <div class="card-top">
+        <div>
+          <div class="card-name">${t.name}</div>
+          <div class="card-by">Slots: ${t.team_size || 4}</div>
+        </div>
+        <div class="card-avatar"><i class="fa-solid fa-user-tie"></i></div>
+      </div>
+      <div class="card-roles">
+        ${(t.roles || []).slice(0, 3).map((r, i) => `
+          <div class="role-row">
+            <span class="dot ${dotClass[i % 3]}"></span>${r}
+          </div>`).join('')}
+      </div>
+      <div class="card-foot">
+        <div class="dl-badge" style="background:var(--black)">
+          <div class="dl-label" style="color:var(--white)">Deadline</div>
+          <div class="dl-date" style="color:var(--white)">${formatDate(t.deadline)}</div>
+        </div>
+        <button class="manage-btn" onclick="openRequestsModal(${t.id})">
+          MANAGE <i class="fa-solid fa-list-check"></i>
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+function renderMyTeamsCards(teams) {
+  const row = document.getElementById('cards-row');
+  if (!teams.length) {
+    row.innerHTML = `<p style="font-size:14px;font-weight:600;color:rgba(0,0,0,0.4);margin-top:8px">
+      You haven't joined any teams yet. Browse the dashboard to find your tribe!</p>`;
+    return;
+  }
+  row.innerHTML = teams.map(t => `
+    <div class="team-card my-team-card">
+      <div class="card-top">
+        <div>
+          <div class="card-name">${t.name}</div>
+          <div class="card-by">Hosted by ${t.creator_name}</div>
+        </div>
+        <div class="card-avatar"><i class="fa-solid fa-users-viewfinder"></i></div>
+      </div>
+      
+      <div class="team-roster">
+        <div class="roster-label">TEAM ROSTER</div>
+        ${t.members.map(m => `
+          <div class="member-row" onclick="openUserProfileModal(${m.id})">
+            <div class="member-dot"></div>
+            <div class="member-name">${m.name}</div>
+            <div class="member-role-tag">${m.role_in_team}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="card-foot" style="margin-top:12px;">
+        <div class="dl-badge" style="background:var(--green2);flex:1">
+          <div class="dl-label">Project Status</div>
+          <div class="dl-date">ACTIVE</div>
+        </div>
+        <button class="apply-btn" onclick="openChat(${t.id}, '${t.name.replace(/'/g, "\\'")}')" style="background:var(--yellow)">
+          CHAT <i class="fa-solid fa-comments"></i>
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+async function fetchMyTeams() {
+  const row = document.getElementById('cards-row');
+  row.innerHTML = '<p style="text-align:center;width:100%;padding:40px;">Loading your squads...</p>';
+  try {
+    const res = await fetch(`${API}/teams/my-teams`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    renderMyTeamsCards(data);
+  } catch (err) {
+    console.error("Failed to fetch my teams:", err);
+    row.innerHTML = `<p style="color:var(--red);text-align:center;width:100%">${err.message}</p>`;
+  }
+}
+
+let currentChatTeamId = null;
+
+function openChat(teamId, teamName) {
+  currentChatTeamId = teamId;
+  document.getElementById('chat-team-name').textContent = teamName;
+  document.getElementById('chat-modal').classList.add('open');
+  const container = document.getElementById('chat-messages');
+  container.innerHTML = '<p style="text-align:center;padding:20px;font-size:12px;color:#888;">Loading history...</p>';
+  
+  socket.emit('join_room', teamId);
+
+  // Fetch history
+  fetch(`${API}/chat/${teamId}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  .then(res => res.json())
+  .then(msgs => {
+    container.innerHTML = '';
+    msgs.forEach(m => renderMessage(m));
+    container.scrollTop = container.scrollHeight;
+  })
+  .catch(err => {
+    console.error("Chat history error:", err);
+    container.innerHTML = '<p style="text-align:center;color:var(--red);">Failed to load history.</p>';
+  });
+}
+
+function renderMessage(data) {
+  const container = document.getElementById('chat-messages');
+  if (!container) return;
+
+  // Handle both snake_case (DB) and camelCase (Socket)
+  const senderId = data.sender_id || data.senderId;
+  const senderName = data.sender_name || data.senderName;
+  const text = data.content || data.message;
+  const isMe = String(senderId) === String(user.id);
+  
+  const msgDiv = document.createElement('div');
+  msgDiv.className = `msg ${isMe ? 'sent' : 'received'}`;
+  msgDiv.innerHTML = `
+    <div class="msg-sender">${isMe ? 'YOU' : senderName}</div>
+    <div class="msg-text">${text}</div>
+  `;
+  
+  container.appendChild(msgDiv);
+  container.scrollTop = container.scrollHeight;
+}
+
+function closeChat() {
+  document.getElementById('chat-modal').classList.remove('open');
+  currentChatTeamId = null;
+}
+
+function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const message = input.value.trim();
+  if (!message || !currentChatTeamId) return;
+
+  const data = {
+    teamId: currentChatTeamId,
+    senderId: user.id,
+    senderName: user.name,
+    message: message
+  };
+
+  socket.emit('send_message', data);
+  input.value = '';
+}
+
+socket.on('receive_message', (data) => {
+  console.log("Socket received message:", data);
+  // Use loose equality or cast to String to be safe
+  if (String(data.teamId) !== String(currentChatTeamId)) {
+    console.log("Message ignored: team mismatch", data.teamId, currentChatTeamId);
+    return;
+  }
+  renderMessage(data);
+});
+
+// Allow Enter key to send message
+document.getElementById('chat-input').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') sendMessage();
+});
 
 // ── API Integration ──────────────────────────────────────
 async function fetchTeams() {
@@ -191,6 +365,119 @@ function submitApply() {
     btn.disabled = false;
   });
 }
+
+// ── Requests Logic ───────────────────────────────────────
+function openRequestsModal(teamId) {
+  const modal = document.getElementById('requests-modal');
+  modal.classList.add('open');
+  const container = document.getElementById('requests-list-container');
+  container.innerHTML = '<p style="text-align:center;padding:20px;">Loading applications...</p>';
+
+  fetch(`${API}/applications/team/${teamId}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  .then(res => res.json())
+  .then(apps => {
+    if (!apps.length) {
+      container.innerHTML = '<p style="text-align:center;padding:20px;font-size:14px;color:#888;">No applications yet for this team.</p>';
+      return;
+    }
+    container.innerHTML = apps.map(a => `
+      <div class="request-item">
+        <div class="req-left" onclick="openUserProfileModal(${a.applicant_id})">
+          <div class="req-avatar"><i class="fa-solid fa-user"></i></div>
+          <div class="req-info">
+            <div class="req-name">${a.applicant_name}</div>
+            <div class="req-role">${a.role}</div>
+            <div class="req-message">"${a.message}"</div>
+          </div>
+        </div>
+        <div class="req-actions">
+          ${a.status === 'pending' ? `
+            <button class="req-btn accept" onclick="updateAppStatus(${a.id}, 'accepted', ${teamId})">ACCEPT</button>
+            <button class="req-btn reject" onclick="updateAppStatus(${a.id}, 'rejected', ${teamId})">REJECT</button>
+          ` : `
+            <span class="status-badge ${a.status}">${a.status.toUpperCase()}</span>
+          `}
+        </div>
+      </div>
+    `).join('');
+  })
+  .catch(err => {
+    container.innerHTML = `<p style="color:var(--red);text-align:center;padding:20px;">Error: ${err.message}</p>`;
+  });
+}
+
+function closeRequestsModal() {
+  document.getElementById('requests-modal').classList.remove('open');
+}
+
+function updateAppStatus(appId, status, teamId) {
+  if (!confirm(`Are you sure you want to ${status} this application?`)) return;
+
+  fetch(`${API}/applications/${appId}/status`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ status })
+  })
+  .then(res => {
+    if (!res.ok) throw new Error('Update failed');
+    return res.json();
+  })
+  .then(() => {
+    alert(`Application ${status}!`);
+    openRequestsModal(teamId); // Refresh list
+  })
+  .catch(err => alert(err.message));
+}
+
+// ── Profile View Logic ───────────────────────────────────
+function openUserProfileModal(userId) {
+  const modal = document.getElementById('user-profile-modal');
+  modal.classList.add('open');
+  const container = document.getElementById('user-profile-content');
+  container.innerHTML = '<p>Loading profile...</p>';
+
+  fetch(`${API}/users/${userId}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  .then(res => res.json())
+  .then(u => {
+    const skillsArr = u.skills ? u.skills.split(',').map(s => s.trim()) : [];
+    container.innerHTML = `
+      <div class="profile-view-avatar"><i class="fa-solid fa-user"></i></div>
+      <div class="profile-view-name">${u.name}</div>
+      <div class="profile-view-email">${u.email}</div>
+      <div class="profile-view-bio">${u.bio || 'No bio provided.'}</div>
+      <div class="profile-view-skills">
+        ${skillsArr.map(s => `<span class="skill-tag">${s}</span>`).join('')}
+      </div>
+      <div class="profile-view-links">
+        ${u.github_url ? `<a href="${u.github_url}" target="_blank" class="profile-link"><i class="fa-brands fa-github"></i></a>` : ''}
+        ${u.linkedin_url ? `<a href="${u.linkedin_url}" target="_blank" class="profile-link"><i class="fa-brands fa-linkedin"></i></a>` : ''}
+      </div>
+    `;
+  })
+  .catch(err => {
+    container.innerHTML = `<p style="color:var(--red)">Error: ${err.message}</p>`;
+  });
+}
+
+function closeUserProfileModal() {
+  document.getElementById('user-profile-modal').classList.remove('open');
+}
+
+// Close modals on overlay click
+['requests-modal', 'user-profile-modal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    if (e.target === document.getElementById(id)) {
+      document.getElementById(id).classList.remove('open');
+    }
+  });
+});
 
 function addRole() {
   const builder = document.getElementById('roles-builder');
