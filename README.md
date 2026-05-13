@@ -1,4 +1,4 @@
-# DevFinder 🚀
+# DevFinder 
 
 ### Stop coding in a vacuum. Start building in a pack
 We have all been there. You have a world-changing idea, but you are stuck in the mud because you are a CSS wizard who cannot write a SQL query to save your life. Or maybe you are a backend architect whose UI designs look like they were pulled from a 1994 GeoCities archive.
