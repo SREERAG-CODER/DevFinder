@@ -215,6 +215,31 @@
     </div>
   </div>
 
+  <!-- NOTIFICATION PANEL -->
+  <div id="notif-panel" style="
+  display:none;
+  position:fixed;
+  top:90px;
+  right:20px;
+  width:340px;
+  background:white;
+  border:1.5px solid var(--border-med);
+  border-radius:20px;
+  box-shadow:0 16px 48px rgba(0,0,0,0.14);
+  z-index:2500;
+  overflow:hidden;
+  animation:modalIn 0.2s ease;
+">
+    <div
+      style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-family:var(--font-ui); font-weight:800; font-size:14px;">NOTIFICATIONS</span>
+      <button onclick="markAllRead()"
+        style="font-size:11px; font-weight:700; font-family:var(--font-ui); background:var(--green-bg); color:var(--green-dark); border:none; border-radius:99px; padding:4px 12px; cursor:pointer;">MARK
+        ALL READ</button>
+    </div>
+    <div id="notif-list" style="max-height:380px; overflow-y:auto;"></div>
+  </div>
+
   <div id="alerts" style="position:fixed; top:20px; right:20px; z-index:3000;"></div>
 
   <script src="dashboard.js"></script>

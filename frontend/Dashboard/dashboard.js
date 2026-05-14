@@ -31,12 +31,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     await fetchNotifications();
     setupEventListeners();
     setupSocketListeners();
+    injectNotifPanel();
     console.log("Dashboard Ready ✅");
   } catch (err) {
     console.error("Critical Init Error:", err);
     showAlert("SYSTEM ERROR: PLEASE REFRESH");
   }
 });
+
+// ── INJECT NOTIFICATION PANEL INTO DOM ──
+
+function injectNotifPanel() {
+  if (document.getElementById('notif-panel')) return;
+  const panel = document.createElement('div');
+  panel.id = 'notif-panel';
+  panel.style.cssText = `
+    display:none;
+    position:fixed;
+    top:90px;
+    right:20px;
+    width:340px;
+    background:white;
+    border:1.5px solid var(--border-med);
+    border-radius:20px;
+    box-shadow:0 16px 48px rgba(0,0,0,0.14);
+    z-index:2500;
+    overflow:hidden;
+    animation:modalIn 0.2s ease;
+  `;
+  panel.innerHTML = `
+    <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-family:var(--font-ui); font-weight:800; font-size:14px;">NOTIFICATIONS</span>
+      <button onclick="markAllRead()" style="font-size:11px; font-weight:700; font-family:var(--font-ui); background:var(--green-bg); color:var(--green-dark); border:none; border-radius:99px; padding:4px 12px; cursor:pointer;">MARK ALL READ</button>
+    </div>
+    <div id="notif-list" style="max-height:380px; overflow-y:auto;"></div>
+  `;
+  document.body.appendChild(panel);
+}
 
 // ── CORE LOGIC ──
 
@@ -123,26 +154,28 @@ function setupEventListeners() {
   });
 
   document.getElementById('search-bar').addEventListener('input', fetchTeams);
-
-  document.getElementById('host-trigger').addEventListener('click', () => {
-    resetHostModal();
-    openModal('modal-host');
+  document.getElementById('host-trigger').addEventListener('click', () => openModal('modal-host'));
+  document.getElementById('notif-trigger').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleNotifs();
   });
-
-  document.getElementById('notif-trigger').addEventListener('click', () => toggleNotifs());
   document.getElementById('logout-btn').addEventListener('click', logout);
 
   document.querySelectorAll('[data-close]').forEach(btn => {
     btn.addEventListener('click', () => closeModal(btn.dataset.close));
   });
 
-  document.addEventListener('click', e => {
-    if (!e.target.closest('#hackathon-combobox')) {
-      closeCombobox();
+  // Close notif panel on outside click
+  document.addEventListener('click', (e) => {
+    const panel = document.getElementById('notif-panel');
+    const trigger = document.getElementById('notif-trigger');
+    if (panel && panel.style.display === 'block' &&
+      !panel.contains(e.target) && !trigger.contains(e.target)) {
+      panel.style.display = 'none';
     }
   });
 
-  document.getElementById('add-role-btn').addEventListener('click', () => addRoleField());
+  document.getElementById('add-role-btn').addEventListener('click', addRoleField);
 
   document.getElementById('publish-team-btn').addEventListener('click', submitTeam);
   document.getElementById('submit-application-btn').addEventListener('click', submitApply);
@@ -162,6 +195,7 @@ function setupEventListeners() {
       openModal('modal-edit-hack');
       return;
     }
+
     const hackDelBtn = e.target.closest('.hack-del-btn');
     if (hackDelBtn) { deleteHackathon(hackDelBtn.dataset.id); return; }
 
@@ -174,6 +208,7 @@ function setupEventListeners() {
       openApplyModal(applyId, applyName, JSON.parse(applyRoles));
       return;
     }
+
     const delBtn = e.target.closest('.admin-del-btn');
     if (delBtn) { deleteTeam(delBtn.dataset.id); return; }
 
@@ -191,164 +226,6 @@ function setupEventListeners() {
   document.getElementById('chat-input').addEventListener('keypress', e => {
     if (e.key === 'Enter') sendMessage();
   });
-}
-
-// ── COMBOBOX (hackathon) ──
-
-function initCombobox() {
-  const input = document.getElementById('h-hack-input');
-  const dropdown = document.getElementById('h-hack-dropdown');
-  const hiddenId = document.getElementById('h-hack-id');
-
-  input.value = '';
-  hiddenId.value = '';
-  dropdown.innerHTML = '';
-  dropdown.classList.remove('open');
-
-  input.addEventListener('input', () => {
-    hiddenId.value = '';
-    filterCombobox(input.value);
-  });
-
-  input.addEventListener('focus', () => {
-    filterCombobox(input.value);
-  });
-}
-
-function filterCombobox(query) {
-  const dropdown = document.getElementById('h-hack-dropdown');
-  const matches = State.hackathons.filter(h =>
-    h.name.toLowerCase().includes(query.toLowerCase())
-  );
-
-  if (matches.length === 0 && query.trim() === '') {
-    dropdown.classList.remove('open');
-    return;
-  }
-
-  dropdown.innerHTML = matches.map(h => `
-    <div class="combobox-option" data-id="${h.id}" data-name="${h.name}">
-      <i class="fa-solid fa-trophy" style="opacity:0.4; margin-right:8px;"></i>${h.name}
-    </div>
-  `).join('');
-
-  if (query.trim() && !matches.find(h => h.name.toLowerCase() === query.toLowerCase())) {
-    dropdown.innerHTML += `
-      <div class="combobox-option combobox-new" data-id="" data-name="${query.trim()}">
-        <i class="fa-solid fa-plus" style="opacity:0.6; margin-right:8px;"></i>Create "${query.trim()}"
-      </div>
-    `;
-  }
-
-  dropdown.classList.toggle('open', dropdown.innerHTML !== '');
-
-  dropdown.querySelectorAll('.combobox-option').forEach(opt => {
-    opt.addEventListener('mousedown', e => {
-      e.preventDefault();
-      document.getElementById('h-hack-input').value = opt.dataset.name;
-      document.getElementById('h-hack-id').value = opt.dataset.id;
-      dropdown.classList.remove('open');
-    });
-  });
-}
-
-function closeCombobox() {
-  const dropdown = document.getElementById('h-hack-dropdown');
-  if (dropdown) dropdown.classList.remove('open');
-}
-
-// ── ROLE INPUTS ──
-
-function addRoleField(prefill = '') {
-  const div = document.createElement('div');
-  div.style.cssText = 'display:flex; gap:8px; margin-bottom:8px;';
-  div.innerHTML = `
-    <input type="text" value="${prefill}" placeholder="e.g. Frontend Dev"
-      style="flex:1; padding:12px 16px; border:1.5px solid var(--border-med); border-radius:12px;
-             font-family:var(--font-ui); font-size:14px; font-weight:500; background:var(--surface2);
-             color:var(--text); outline:none; transition:all 0.18s;">
-    <button type="button"
-      style="width:45px; height:45px; border-radius:50%; background:var(--red); color:white;
-             border:none; cursor:pointer; font-size:16px; flex-shrink:0; display:flex;
-             align-items:center; justify-content:center;"
-      onclick="this.parentElement.remove()">
-      <i class="fa-solid fa-minus"></i>
-    </button>`;
-  document.getElementById('role-inputs').appendChild(div);
-  div.querySelector('input').focus();
-}
-
-function resetHostModal() {
-  document.getElementById('h-name').value = '';
-  document.getElementById('h-tech').value = '';
-  document.getElementById('h-date').value = '';
-  document.getElementById('role-inputs').innerHTML = '';
-  addRoleField();
-  initCombobox();
-}
-
-// ── SUBMIT TEAM ──
-
-async function submitTeam() {
-  const name = document.getElementById('h-name').value.trim();
-  const roles = [...document.querySelectorAll('#role-inputs input')]
-    .map(i => i.value.trim())
-    .filter(Boolean);
-  const techRaw = document.getElementById('h-tech').value;
-  const tech_stack = techRaw
-    ? techRaw.split(',').map(s => s.trim()).filter(Boolean)
-    : [];
-
-  if (!name) return showAlert("⚠️ TEAM NAME IS REQUIRED");
-  if (roles.length === 0) return showAlert("⚠️ ADD AT LEAST ONE ROLE");
-
-  const hackId = document.getElementById('h-hack-id').value.trim();
-  const hackName = document.getElementById('h-hack-input').value.trim();
-  let hackathon_id = hackId || null;
-
-  try {
-    if (!hackathon_id && hackName) {
-      const hackRes = await fetch(`${API}/hackathons`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ name: hackName })
-      });
-      if (hackRes.ok) {
-        const hackData = await hackRes.json();
-        hackathon_id = hackData.id;
-        await fetchHackathons();
-      }
-    }
-
-    const payload = {
-      name,
-      tech_stack,
-      roles,
-      deadline: document.getElementById('h-date').value || null,
-      hackathon_id: hackathon_id || null
-    };
-
-    console.log("Submitting team payload:", payload);
-
-    const res = await fetch(`${API}/teams`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify(payload)
-    });
-
-    if (res.ok) {
-      closeModal('modal-host');
-      fetchTeams();
-      showAlert("TEAM PUBLISHED! ✅");
-    } else {
-      const errData = await res.json().catch(() => ({}));
-      console.error("Backend error:", errData);
-      showAlert(errData.error || errData.message || "PUBLISH FAILED — CHECK CONSOLE");
-    }
-  } catch (err) {
-    console.error("Submit team error:", err);
-    showAlert("SUBMISSION FAILED — NETWORK ERROR");
-  }
 }
 
 // ── NAV HANDLER ──
@@ -444,6 +321,87 @@ function openApplyModal(id, name, roles) {
   document.getElementById('apply-title').textContent = name;
   document.getElementById('a-role').innerHTML = roles.map(r => `<option value="${r}">${r}</option>`).join('');
   openModal('modal-apply');
+}
+
+// ── NOTIFICATIONS ──
+
+async function toggleNotifs() {
+  const panel = document.getElementById('notif-panel');
+  if (!panel) return;
+  const isOpen = panel.style.display === 'block';
+  if (isOpen) {
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = 'block';
+  await loadNotifPanel();
+}
+
+async function loadNotifPanel() {
+  const list = document.getElementById('notif-list');
+  if (!list) return;
+  list.innerHTML = '<p style="text-align:center; padding:20px; opacity:0.4; font-size:12px; font-weight:700; font-family:var(--font-ui);">LOADING...</p>';
+
+  try {
+    const res = await fetch(`${API}/notifications`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+
+    if (!data.length) {
+      list.innerHTML = '<p style="text-align:center; padding:30px; opacity:0.3; font-size:12px; font-weight:800; font-family:var(--font-ui);">NO NOTIFICATIONS YET</p>';
+      return;
+    }
+
+    list.innerHTML = data.map(n => `
+      <div style="
+        padding:14px 20px;
+        border-bottom:1px solid var(--border);
+        background:${n.is_read ? 'white' : 'var(--green-bg)'};
+        display:flex; gap:12px; align-items:flex-start;
+      ">
+        <div style="
+          width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:5px;
+          background:${n.is_read ? 'transparent' : 'var(--green-dark)'};
+        "></div>
+        <div style="flex:1; min-width:0;">
+          <p style="font-size:13px; font-weight:600; font-family:var(--font-ui); line-height:1.45; margin:0 0 4px; word-break:break-word;">${n.message}</p>
+          <p style="font-size:10px; font-weight:700; opacity:0.4; font-family:var(--font-ui); margin:0;">
+            ${new Date(n.created_at).toLocaleString()}
+          </p>
+        </div>
+      </div>
+    `).join('');
+
+  } catch (err) {
+    list.innerHTML = '<p style="color:var(--red); text-align:center; padding:20px; font-size:12px; font-weight:700;">FAILED TO LOAD</p>';
+  }
+}
+
+async function markAllRead() {
+  try {
+    await fetch(`${API}/notifications/read-all`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    await fetchNotifications();
+    await loadNotifPanel();
+  } catch (err) {
+    showAlert("FAILED TO MARK READ");
+  }
+}
+
+async function fetchNotifications() {
+  try {
+    const res = await fetch(`${API}/notifications`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+    const unread = data.filter(n => !n.is_read).length;
+    const count = document.getElementById('notif-count');
+    if (count) {
+      count.style.display = unread > 0 ? 'flex' : 'none';
+      count.textContent = unread;
+    }
+  } catch (err) { console.warn("Notifications fetch failed"); }
 }
 
 // ── APPLY ──
@@ -577,6 +535,72 @@ async function updateAppStatus(appId, status) {
   } catch (err) { showAlert("Network error"); }
 }
 
+// ── SUBMIT TEAM ──
+
+async function submitTeam() {
+  const name = document.getElementById('h-name').value.trim();
+  const roles = [...document.querySelectorAll('#role-inputs input')]
+    .map(i => i.value.trim()).filter(Boolean);
+  const techRaw = document.getElementById('h-tech').value;
+  const tech_stack = techRaw ? techRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+  if (!name) return showAlert("⚠️ TEAM NAME IS REQUIRED");
+  if (roles.length === 0) return showAlert("⚠️ ADD AT LEAST ONE ROLE");
+
+  try {
+    let hackathon_id = null;
+
+    // Support both old select (#h-hack) and new combobox (#h-hack-id)
+    const hackIdEl = document.getElementById('h-hack-id');
+    const hackSelEl = document.getElementById('h-hack');
+    if (hackIdEl && hackIdEl.value) {
+      hackathon_id = hackIdEl.value;
+    } else if (hackSelEl && hackSelEl.value) {
+      hackathon_id = hackSelEl.value;
+    }
+
+    const hackNameEl = document.getElementById('h-hack-input') || document.getElementById('h-hack-new');
+    const hackName = hackNameEl ? hackNameEl.value.trim() : '';
+
+    if (!hackathon_id && hackName) {
+      const hackRes = await fetch(`${API}/hackathons`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name: hackName })
+      });
+      if (hackRes.ok) {
+        const hackData = await hackRes.json();
+        hackathon_id = hackData.id;
+        await fetchHackathons();
+      }
+    }
+
+    const res = await fetch(`${API}/teams`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        name,
+        tech_stack,
+        roles,
+        deadline: document.getElementById('h-date').value || null,
+        hackathon_id: hackathon_id || null
+      })
+    });
+
+    if (res.ok) {
+      closeModal('modal-host');
+      fetchTeams();
+      showAlert("TEAM PUBLISHED! ✅");
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      showAlert(errData.error || "PUBLISH FAILED");
+    }
+  } catch (err) {
+    console.error("Submit team error:", err);
+    showAlert("SUBMISSION FAILED — NETWORK ERROR");
+  }
+}
+
 // ── ADMIN OPS ──
 
 async function fetchAdminStats() {
@@ -646,6 +670,25 @@ async function saveHackathon() {
 
 // ── UTILS ──
 
+function addRoleField() {
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex; gap:8px; margin-bottom:8px;';
+  div.innerHTML = `
+    <input type="text" placeholder="e.g. Frontend Dev"
+      style="flex:1; padding:12px 16px; border:1.5px solid var(--border-med); border-radius:12px;
+             font-family:var(--font-ui); font-size:14px; font-weight:500; background:var(--surface2);
+             color:var(--text); outline:none; transition:all 0.18s;">
+    <button type="button"
+      style="width:45px; height:45px; border-radius:50%; background:var(--red); color:white;
+             border:none; cursor:pointer; font-size:16px; flex-shrink:0; display:flex;
+             align-items:center; justify-content:center;"
+      onclick="this.parentElement.remove()">
+      <i class="fa-solid fa-minus"></i>
+    </button>`;
+  document.getElementById('role-inputs').appendChild(div);
+  div.querySelector('input').focus();
+}
+
 function showAlert(text) {
   const container = document.getElementById('alerts');
   const div = document.createElement('div');
@@ -659,41 +702,37 @@ async function fetchHackathons() {
   try {
     const res = await fetch(`${API}/hackathons`);
     State.hackathons = await res.json();
+    // Support legacy select element if present
+    const sel = document.getElementById('h-hack');
+    if (sel) {
+      sel.innerHTML = '<option value="">NONE</option>' +
+        State.hackathons.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
+    }
   } catch (err) {
     console.warn("Could not fetch hackathons");
     State.hackathons = [];
   }
 }
 
-async function fetchNotifications() {
-  try {
-    const res = await fetch(`${API}/notifications`, { headers: { 'Authorization': `Bearer ${token}` } });
-    const data = await res.json();
-    const unread = data.filter(n => !n.is_read).length;
-    const count = document.getElementById('notif-count');
-    if (count) {
-      count.style.display = unread > 0 ? 'flex' : 'none';
-      count.textContent = unread;
-    }
-  } catch (err) { console.warn("Notifications fetch failed"); }
-}
-
 function setupSocketListeners() {
   socket.on('receive_message', m => {
     if (m.teamId == State.currentTid) renderMsg(m);
   });
-  socket.on('notification', () => {
+
+  socket.on('notification', (data) => {
     fetchNotifications();
-    showAlert("NEW ALERT! 🔔");
+    // If the panel is open, refresh it live
+    const panel = document.getElementById('notif-panel');
+    if (panel && panel.style.display === 'block') {
+      loadNotifPanel();
+    }
+    // Show the actual message in the toast
+    const msg = (data && data.message) ? data.message : 'NEW NOTIFICATION';
+    showAlert(`🔔 ${msg}`);
   });
 }
 
 function logout() {
   localStorage.clear();
   window.location.href = '../Authentication/login.html';
-}
-
-function toggleNotifs() {
-  showAlert("NOTIFICATIONS SYNCED 🔔");
-  fetchNotifications();
 }

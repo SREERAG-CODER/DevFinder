@@ -1,8 +1,8 @@
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const BASE_URL = IS_LOCAL ? 'http://127.0.0.1:5000' : 'https://devfinder-backend-ll4g.onrender.com'; // TODO: Replace with your Render URL
-const API      = `${BASE_URL}/api`;
-const token  = localStorage.getItem('token');
-const user   = JSON.parse(localStorage.getItem('user') || 'null');
+const API = `${BASE_URL}/api`;
+const token = localStorage.getItem('token');
+const user = JSON.parse(localStorage.getItem('user') || 'null');
 
 if (!token || !user) window.location.href = '../Authentication/login.html';
 
@@ -10,15 +10,15 @@ let profileData = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log("Profile Initializing...");
-  
+
   try {
     // Initial Load
     await loadProfile();
     await fetchHostedTeams();
-    
+
     // Listeners
     setupProfileListeners();
-    
+
     console.log("Profile Ready ✅");
   } catch (err) {
     console.error("Profile Init Error:", err);
@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadProfile() {
   const res = await fetch(`${API}/users/me`, { headers: { 'Authorization': `Bearer ${token}` } });
   profileData = await res.json();
-  
+
   // Sidebar Sync
   document.getElementById('sidebar-u-name').textContent = profileData.name.toUpperCase();
   if (profileData.is_admin) {
@@ -43,17 +43,17 @@ async function loadProfile() {
   document.getElementById('p-full-name').textContent = profileData.name.toUpperCase();
   document.getElementById('p-email').textContent = profileData.email;
   document.getElementById('p-avatar-big').textContent = profileData.name.charAt(0).toUpperCase();
-  
+
   // Links
   document.getElementById('v-github').textContent = profileData.github_url || 'Not added';
   document.getElementById('v-linkedin').textContent = profileData.linkedin_url || 'Not added';
   document.getElementById('p-github-link').href = profileData.github_url || '#';
   document.getElementById('p-linkedin-link').href = profileData.linkedin_url || '#';
-  
+
   // Right Island
   document.getElementById('v-bio').textContent = profileData.bio || 'No bio added yet.';
   document.getElementById('p-since').textContent = `MEMBER SINCE ${new Date(profileData.created_at).getFullYear()}`;
-  
+
   // Skills
   renderSkills(profileData.skills || []);
 }
@@ -61,7 +61,7 @@ async function loadProfile() {
 function renderSkills(skills) {
   const vWrap = document.getElementById('v-skills');
   const eWrap = document.getElementById('e-skills');
-  
+
   vWrap.innerHTML = skills.length ? skills.map(s => `<span class="skill-tag">${s.toUpperCase()}</span>`).join('') : '<p style="opacity:0.5">No skills listed</p>';
   eWrap.innerHTML = skills.map(s => `
     <span class="skill-tag" style="background:var(--yellow)">
@@ -77,7 +77,7 @@ function setupProfileListeners() {
   document.getElementById('cancel-edit-btn').addEventListener('click', toggleEdit);
   document.getElementById('save-profile-btn').addEventListener('click', saveProfile);
   document.getElementById('add-skill-btn').addEventListener('click', addSkill);
-  
+
   document.getElementById('skill-input').addEventListener('keypress', e => {
     if (e.key === 'Enter') addSkill();
   });
@@ -98,7 +98,7 @@ function toggleEdit() {
     document.getElementById('e-bio').value = profileData.bio || '';
     document.getElementById('e-github').value = profileData.github_url || '';
     document.getElementById('e-linkedin').value = profileData.linkedin_url || '';
-    
+
     vMode.style.display = 'none';
     eMode.style.display = 'block';
     document.getElementById('edit-trigger-btn').style.display = 'none';
@@ -119,12 +119,12 @@ async function saveProfile() {
   };
 
   try {
-    const res = await fetch(`${API}/users/update`, {
+    const res = await fetch(`${API}/users/profile`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(updated)
     });
-    
+
     if (res.ok) {
       showAlert("PROFILE UPDATED! ✅");
       await loadProfile();
@@ -139,7 +139,7 @@ function addSkill() {
   const input = document.getElementById('skill-input');
   const val = input.value.trim();
   if (!val) return;
-  
+
   if (!profileData.skills) profileData.skills = [];
   if (!profileData.skills.includes(val)) {
     profileData.skills.push(val);
@@ -160,13 +160,13 @@ async function fetchHostedTeams() {
     const res = await fetch(`${API}/teams`);
     const allTeams = await res.json();
     const hosted = allTeams.filter(t => t.created_by === user.id);
-    
+
     const list = document.getElementById('hosted-list');
     if (!hosted.length) {
       list.innerHTML = '<p style="text-align:center; padding:40px; opacity:0.3; font-weight:800;">NO TEAMS HOSTED YET</p>';
       return;
     }
-    
+
     list.innerHTML = hosted.map(t => `
       <div class="hosted-team-row">
         <div>
@@ -192,7 +192,7 @@ async function openApplicants(tid, name) {
   try {
     const res = await fetch(`${API}/applications/team/${tid}`, { headers: { 'Authorization': `Bearer ${token}` } });
     const apps = await res.json();
-    
+
     if (!apps.length) {
       list.innerHTML = '<p style="text-align:center; padding:20px; font-weight:800; opacity:0.4;">NO APPLICANTS YET</p>';
       return;
@@ -243,7 +243,7 @@ async function uploadAvatar(e) {
   showAlert("AVATAR UPLOAD COMING SOON ⚡");
 }
 
-function logout() { 
-  localStorage.clear(); 
-  window.location.href = '../Authentication/login.html'; 
+function logout() {
+  localStorage.clear();
+  window.location.href = '../Authentication/login.html';
 }
