@@ -672,3 +672,11 @@ body {
     min-height: 18px;
     font-weight: 700;
 }
+
+.form-feedback.ok {
+    color: #27ae60;
+}
+
+.form-feedback.err {
+    color: #b91c1c;
+}
