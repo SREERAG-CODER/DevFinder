@@ -1,5 +1,5 @@
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const BASE_URL = IS_LOCAL ? 'http://127.0.0.1:5000' : 'https://devfinder-backend-ll4g.onrender.com'; // TODO: Replace with your Render URL
+const BASE_URL = IS_LOCAL ? 'http://127.0.0.1:5000' : 'https://devfinder-backend-ll4g.onrender.com';
 const API = `${BASE_URL}/api`;
 const token = localStorage.getItem('token');
 const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -12,7 +12,8 @@ const State = {
   currentTid: null,
   activeNav: 'all',
   manageTid: null,
-  manageTname: null
+  manageTname: null,
+  hackathons: []   // cached hackathon list for combobox
 };
 
 // ── BOOTSTRAP ──
@@ -22,23 +23,14 @@ if (!token || !user) {
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log("DevFinder Dashboard Initializing...");
-
   try {
-    // 1. Setup UI
     document.getElementById('u-name').textContent = user.name.toUpperCase();
-
-    // 2. Initial Data Load
     await checkAdmin();
     await fetchTeams();
     await fetchHackathons();
     await fetchNotifications();
-
-    // 3. Setup Listeners
     setupEventListeners();
-
-    // 4. Socket Listeners
     setupSocketListeners();
-
     console.log("Dashboard Ready ✅");
   } catch (err) {
     console.error("Critical Init Error:", err);
@@ -67,11 +59,9 @@ async function fetchTeams() {
     const search = document.getElementById('search-bar').value;
     const res = await fetch(`${API}/teams`);
     State.allTeams = await res.json();
-
     const filtered = State.allTeams.filter(t =>
       t.name.toLowerCase().includes(search.toLowerCase())
     );
-
     renderCards(filtered);
   } catch (err) {
     console.error("Fetch Teams failed:", err);
@@ -85,7 +75,6 @@ function renderCards(teams) {
     grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:100px; opacity:0.2"><h1>VOID</h1></div>`;
     return;
   }
-
   grid.innerHTML = teams.map(t => `
     <article class="card">
       <div class="card-header">
@@ -131,32 +120,42 @@ function setupEventListeners() {
     });
   });
 
-  // Topbar Actions
+  // Topbar
   document.getElementById('search-bar').addEventListener('input', fetchTeams);
-  document.getElementById('host-trigger').addEventListener('click', () => openModal('modal-host'));
+
+  // HOST TRIGGER — reset modal state freshly each time
+  document.getElementById('host-trigger').addEventListener('click', () => {
+    resetHostModal();
+    openModal('modal-host');
+  });
+
   document.getElementById('notif-trigger').addEventListener('click', () => toggleNotifs());
   document.getElementById('logout-btn').addEventListener('click', logout);
 
-  // Modal Closing (Delegation)
+  // Modal close buttons
   document.querySelectorAll('[data-close]').forEach(btn => {
     btn.addEventListener('click', () => closeModal(btn.dataset.close));
   });
 
+  // Close combobox dropdown when clicking outside
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#hackathon-combobox')) {
+      closeCombobox();
+    }
+  });
+
   // Role Field Adder
-  document.getElementById('add-role-btn').addEventListener('click', addRoleField);
+  document.getElementById('add-role-btn').addEventListener('click', () => addRoleField());
 
   // Submit Buttons
   document.getElementById('publish-team-btn').addEventListener('click', submitTeam);
   document.getElementById('submit-application-btn').addEventListener('click', submitApply);
   document.getElementById('send-chat-btn').addEventListener('click', sendMessage);
   document.getElementById('broadcast-btn').addEventListener('click', sendBroadcast);
-
   document.getElementById('save-hack-btn').addEventListener('click', saveHackathon);
-
-  // Admin Panel Trigger
   document.getElementById('admin-nav-btn').addEventListener('click', openAdminPanel);
 
-  // Global Grid Click Delegation (For dynamic cards)
+  // Grid click delegation
   document.getElementById('grid').addEventListener('click', e => {
     const hackEditBtn = e.target.closest('.hack-edit-btn');
     if (hackEditBtn) {
@@ -168,19 +167,11 @@ function setupEventListeners() {
       openModal('modal-edit-hack');
       return;
     }
-
     const hackDelBtn = e.target.closest('.hack-del-btn');
-    if (hackDelBtn) {
-      deleteHackathon(hackDelBtn.dataset.id);
-      return;
-    }
+    if (hackDelBtn) { deleteHackathon(hackDelBtn.dataset.id); return; }
 
     const manageBtn = e.target.closest('.btn-manage');
-    if (manageBtn) {
-      const { tid, tname } = manageBtn.dataset;
-      openManageModal(tid, tname);
-      return;
-    }
+    if (manageBtn) { openManageModal(manageBtn.dataset.tid, manageBtn.dataset.tname); return; }
 
     const applyBtn = e.target.closest('[data-apply-id]');
     if (applyBtn) {
@@ -188,36 +179,197 @@ function setupEventListeners() {
       openApplyModal(applyId, applyName, JSON.parse(applyRoles));
       return;
     }
-
     const delBtn = e.target.closest('.admin-del-btn');
-    if (delBtn) {
-      deleteTeam(delBtn.dataset.id);
-      return;
-    }
+    if (delBtn) { deleteTeam(delBtn.dataset.id); return; }
 
     const featBtn = e.target.closest('.admin-feat-btn');
-    if (featBtn) {
-      toggleFeature(featBtn.dataset.id, featBtn.dataset.feat === 'true');
-      return;
-    }
+    if (featBtn) { toggleFeature(featBtn.dataset.id, featBtn.dataset.feat === 'true'); return; }
 
     const chatBtn = e.target.closest('.open-chat-btn');
     if (chatBtn) {
-      console.log("Chat button clicked!", chatBtn.dataset);
       const { tid, tname } = chatBtn.dataset;
-      if (tid && tname) {
-        openChat(tid, tname);
-      } else {
-        console.error("Missing TID or TNAME in dataset");
-      }
+      if (tid && tname) openChat(tid, tname);
       return;
     }
   });
 
-  // Enter Key for Chat
+  // Enter key for chat
   document.getElementById('chat-input').addEventListener('keypress', e => {
     if (e.key === 'Enter') sendMessage();
   });
+}
+
+// ── COMBOBOX (hackathon) ──
+
+function initCombobox() {
+  const input = document.getElementById('h-hack-input');
+  const dropdown = document.getElementById('h-hack-dropdown');
+  const hiddenId = document.getElementById('h-hack-id');
+
+  // Reset
+  input.value = '';
+  hiddenId.value = '';
+  dropdown.innerHTML = '';
+  dropdown.classList.remove('open');
+
+  input.addEventListener('input', () => {
+    hiddenId.value = ''; // clear any previously selected id when user types
+    filterCombobox(input.value);
+  });
+
+  input.addEventListener('focus', () => {
+    filterCombobox(input.value);
+  });
+}
+
+function filterCombobox(query) {
+  const dropdown = document.getElementById('h-hack-dropdown');
+  const matches = State.hackathons.filter(h =>
+    h.name.toLowerCase().includes(query.toLowerCase())
+  );
+
+  if (matches.length === 0 && query.trim() === '') {
+    dropdown.classList.remove('open');
+    return;
+  }
+
+  dropdown.innerHTML = matches.map(h => `
+    <div class="combobox-option" data-id="${h.id}" data-name="${h.name}">
+      <i class="fa-solid fa-trophy" style="opacity:0.4; margin-right:8px;"></i>${h.name}
+    </div>
+  `).join('');
+
+  if (query.trim() && !matches.find(h => h.name.toLowerCase() === query.toLowerCase())) {
+    dropdown.innerHTML += `
+      <div class="combobox-option combobox-new" data-id="" data-name="${query.trim()}">
+        <i class="fa-solid fa-plus" style="opacity:0.6; margin-right:8px;"></i>Create "${query.trim()}"
+      </div>
+    `;
+  }
+
+  dropdown.classList.toggle('open', dropdown.innerHTML !== '');
+
+  dropdown.querySelectorAll('.combobox-option').forEach(opt => {
+    opt.addEventListener('mousedown', e => {
+      e.preventDefault(); // prevent input blur before click
+      document.getElementById('h-hack-input').value = opt.dataset.name;
+      document.getElementById('h-hack-id').value = opt.dataset.id; // empty string = new
+      dropdown.classList.remove('open');
+    });
+  });
+}
+
+function closeCombobox() {
+  const dropdown = document.getElementById('h-hack-dropdown');
+  if (dropdown) dropdown.classList.remove('open');
+}
+
+// ── ROLE INPUTS ──
+
+function addRoleField(prefill = '') {
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex; gap:8px; margin-bottom:8px;';
+  div.innerHTML = `
+    <input type="text" value="${prefill}" placeholder="e.g. Frontend Dev"
+      style="flex:1; padding:12px 16px; border:1.5px solid var(--border-med); border-radius:12px;
+             font-family:var(--font-ui); font-size:14px; font-weight:500; background:var(--surface2);
+             color:var(--text); outline:none; transition:all 0.18s;">
+    <button type="button"
+      style="width:45px; height:45px; border-radius:50%; background:var(--red); color:white;
+             border:none; cursor:pointer; font-size:16px; flex-shrink:0; display:flex;
+             align-items:center; justify-content:center;"
+      onclick="this.parentElement.remove()">
+      <i class="fa-solid fa-minus"></i>
+    </button>`;
+  document.getElementById('role-inputs').appendChild(div);
+
+  // Focus the new input
+  div.querySelector('input').focus();
+}
+
+function resetHostModal() {
+  // Clear all fields
+  document.getElementById('h-name').value = '';
+  document.getElementById('h-tech').value = '';
+  document.getElementById('h-date').value = '';
+  document.getElementById('role-inputs').innerHTML = '';
+
+  // Add one empty role field
+  addRoleField();
+
+  // Init combobox with fresh state
+  initCombobox();
+}
+
+// ── SUBMIT TEAM ──
+
+async function submitTeam() {
+  const name = document.getElementById('h-name').value.trim();
+  const roles = [...document.querySelectorAll('#role-inputs input')]
+    .map(i => i.value.trim())
+    .filter(Boolean);
+  const techRaw = document.getElementById('h-tech').value;
+  const tech_stack = techRaw
+    ? techRaw.split(',').map(s => s.trim()).filter(Boolean)
+    : [];
+
+  // Validate
+  if (!name) return showAlert("⚠️ TEAM NAME IS REQUIRED");
+  if (roles.length === 0) return showAlert("⚠️ ADD AT LEAST ONE ROLE");
+
+  // Hackathon: id = existing id, name = text in input
+  const hackId = document.getElementById('h-hack-id').value.trim();
+  const hackName = document.getElementById('h-hack-input').value.trim();
+
+  let hackathon_id = hackId || null;
+
+  try {
+    // If user typed a new name (no id selected), create the hackathon first
+    if (!hackathon_id && hackName) {
+      const hackRes = await fetch(`${API}/hackathons`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name: hackName })
+      });
+      if (hackRes.ok) {
+        const hackData = await hackRes.json();
+        hackathon_id = hackData.id;
+        // Refresh cache
+        await fetchHackathons();
+      } else {
+        console.warn("Could not create hackathon, proceeding without.");
+      }
+    }
+
+    const payload = {
+      name,
+      tech_stack,
+      roles,
+      deadline: document.getElementById('h-date').value || null,
+      hackathon_id: hackathon_id || null
+    };
+
+    console.log("Submitting team payload:", payload);
+
+    const res = await fetch(`${API}/teams`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      closeModal('modal-host');
+      fetchTeams();
+      showAlert("TEAM PUBLISHED! ✅");
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      console.error("Backend error:", errData);
+      showAlert(errData.error || errData.message || "PUBLISH FAILED — CHECK CONSOLE");
+    }
+  } catch (err) {
+    console.error("Submit team error:", err);
+    showAlert("SUBMISSION FAILED — NETWORK ERROR");
+  }
 }
 
 // ── NAV HANDLER ──
@@ -236,7 +388,6 @@ async function handleNav(type) {
     grid.innerHTML = hosted.map(t => `
       <article class="card" style="border-color:var(--pink)">
         <div class="card-header"><div><h3 class="card-title">${t.name}</h3><p class="card-subtitle">HOSTING</p></div></div>
-        
         <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px;">
           ${(t.tech_stack || []).map(s => `<span class="stack-tag" style="margin:0;"><i class="fa-solid fa-code"></i> ${s.toUpperCase()}</span>`).join('')}
         </div>
@@ -247,12 +398,13 @@ async function handleNav(type) {
           ${t.hackathon_name ? `<div><i class="fa-solid fa-trophy" style="margin-right:5px; width:12px;"></i> ${t.hackathon_name}</div>` : ''}
           ${t.deadline ? `<div><i class="fa-regular fa-clock" style="margin-right:5px; width:12px;"></i> BY ${new Date(t.deadline).toLocaleDateString()}</div>` : ''}
         </div>
-
-        <div class="card-footer"><button class="btn-apply btn-manage" data-tid="${t.id}" data-tname="${t.name.replace(/'/g, "&apos;")}" style="background:var(--black); color:white; width:100%">MANAGE TEAM</button></div>
+        <div class="card-footer">
+          <button class="btn-apply btn-manage" data-tid="${t.id}" data-tname="${t.name.replace(/'/g, "&apos;")}"
+            style="background:var(--black); color:white; width:100%">MANAGE TEAM</button>
+        </div>
       </article>`).join('');
   }
   else if (type === 'joined') {
-    console.log("Fetching Joined Teams...");
     const res = await fetch(`${API}/teams/my-teams`, { headers: { 'Authorization': `Bearer ${token}` } });
     const teams = await res.json();
     grid.innerHTML = teams.map(t => `
@@ -262,10 +414,8 @@ async function handleNav(type) {
           ${t.members.map(m => `<div style="display:flex; justify-content:space-between; font-size:12px; font-weight:900; margin-bottom:5px;"><span>${m.name}</span><span style="opacity:0.5">${m.role_in_team}</span></div>`).join('')}
         </div>
         <div class="card-footer">
-          <button class="btn-apply open-chat-btn" 
-                  data-tid="${t.id}" 
-                  data-tname="${t.name.replace(/'/g, "&apos;")}" 
-                  style="background:var(--yellow); width:100%">
+          <button class="btn-apply open-chat-btn" data-tid="${t.id}" data-tname="${t.name.replace(/'/g, "&apos;")}"
+            style="background:var(--yellow); width:100%">
             <i class="fa-solid fa-comments"></i> OPEN CHAT
           </button>
         </div>
@@ -277,12 +427,23 @@ async function handleNav(type) {
     grid.innerHTML = data.map(h => `
       <article class="card" style="background:var(--black); color:white">
         <h3 class="card-title" style="color:var(--yellow)">${h.name}</h3>
-        <p style="font-size:12px; opacity:0.6; margin-bottom:15px;">${h.location}</p>
+        <p style="font-size:12px; opacity:0.6; margin-bottom:15px;">${h.location || ''}</p>
         <div style="display:flex; gap:10px;">
-          <button class="btn-apply" style="flex:1; background:var(--white); color:var(--black)" onclick="window.open('${h.website_url}', '_blank')">VISIT</button>
+          <button class="btn-apply" style="flex:1; background:var(--white); color:var(--black)"
+            onclick="window.open('${h.website_url || '#'}', '_blank')">VISIT</button>
           ${State.isAdmin ? `
-            <button class="hack-edit-btn" data-id="${h.id}" data-name="${h.name.replace(/'/g, "&apos;")}" data-loc="${(h.location || '').replace(/'/g, "&apos;")}" data-url="${(h.website_url || '').replace(/'/g, "&apos;")}" style="padding:10px; width:45px; border-radius:99px; background:var(--yellow); border:none; color:black; font-weight:800; cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
-            <button class="hack-del-btn" data-id="${h.id}" style="padding:10px; width:45px; border-radius:99px; background:var(--red); border:none; color:white; font-weight:800; cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
+            <button class="hack-edit-btn"
+              data-id="${h.id}"
+              data-name="${h.name.replace(/'/g, "&apos;")}"
+              data-loc="${(h.location || '').replace(/'/g, "&apos;")}"
+              data-url="${(h.website_url || '').replace(/'/g, "&apos;")}"
+              style="padding:10px; width:45px; border-radius:99px; background:var(--yellow); border:none; color:black; font-weight:800; cursor:pointer;">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button class="hack-del-btn" data-id="${h.id}"
+              style="padding:10px; width:45px; border-radius:99px; background:var(--red); border:none; color:white; font-weight:800; cursor:pointer;">
+              <i class="fa-solid fa-trash"></i>
+            </button>
           ` : ''}
         </div>
       </article>`).join('');
@@ -306,63 +467,7 @@ function openApplyModal(id, name, roles) {
   openModal('modal-apply');
 }
 
-// ── ACTION HANDLERS ──
-
-async function submitTeam() {
-  const name = document.getElementById('h-name').value.trim();
-  const roles = [...document.querySelectorAll('#role-inputs input')]
-    .map(i => i.value.trim())
-    .filter(Boolean);
-  const techRaw = document.getElementById('h-tech').value;
-  const tech_stack = techRaw
-    ? techRaw.split(',').map(s => s.trim()).filter(Boolean)
-    : [];
-
-  if (!name) return showAlert("TEAM NAME IS REQUIRED");
-  if (roles.length === 0) return showAlert("ADD AT LEAST ONE ROLE");
-
-  try {
-    let hackathon_id = document.getElementById('h-hack').value || null;
-    const newHackName = document.getElementById('h-hack-new')?.value.trim();
-
-    if (!hackathon_id && newHackName) {
-      const hackRes = await fetch(`${API}/hackathons`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ name: newHackName })
-      });
-      if (hackRes.ok) {
-        const hackData = await hackRes.json();
-        hackathon_id = hackData.id;
-      }
-    }
-
-    const res = await fetch(`${API}/teams`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({
-        name,
-        tech_stack,
-        roles,
-        deadline: document.getElementById('h-date').value || null,
-        hackathon_id: hackathon_id || null
-      })
-    });
-
-    if (res.ok) {
-      closeModal('modal-host');
-      fetchTeams();
-      fetchHackathons();
-      showAlert("TEAM PUBLISHED! ✅");
-    } else {
-      const errData = await res.json();
-      showAlert(errData.error || "PUBLISH FAILED");
-    }
-  } catch (err) {
-    console.error("Submit team error:", err);
-    showAlert("SUBMISSION FAILED");
-  }
-}
+// ── APPLY ──
 
 async function submitApply() {
   try {
@@ -380,29 +485,19 @@ async function submitApply() {
   } catch (err) { showAlert("APPLICATION FAILED"); }
 }
 
-// ── CHAT SYSTEM ──
+// ── CHAT ──
 
 function openChat(tid, name) {
-  console.log(`Opening chat for team ${tid}: ${name}`);
   State.currentTid = tid;
-
   const titleEl = document.getElementById('chat-title');
   const msgsEl = document.getElementById('chat-msgs');
-
   if (titleEl) titleEl.textContent = name.toUpperCase();
   if (msgsEl) msgsEl.innerHTML = '<p style="text-align:center; padding:20px; opacity:0.5; font-weight:900;">SYNCING CHANNEL...</p>';
-
   openModal('modal-chat');
-
-  // Join room
-  console.log("Emitting join_room:", tid);
   socket.emit('join_room', tid);
-
-  // Fetch History
   fetch(`${API}/chat/${tid}`, { headers: { 'Authorization': `Bearer ${token}` } })
     .then(r => r.json())
     .then(msgs => {
-      console.log(`Fetched ${msgs.length} messages`);
       if (msgsEl) {
         msgsEl.innerHTML = '';
         if (msgs.length === 0) {
@@ -412,8 +507,7 @@ function openChat(tid, name) {
         }
       }
     })
-    .catch(err => {
-      console.error("Chat history fetch failed:", err);
+    .catch(() => {
       if (msgsEl) msgsEl.innerHTML = '<p style="color:var(--red); text-align:center; padding:20px;">FAILED TO LOAD HISTORY</p>';
     });
 }
@@ -421,7 +515,6 @@ function openChat(tid, name) {
 function sendMessage() {
   const input = document.getElementById('chat-input');
   if (!input.value.trim() || !State.currentTid) return;
-
   socket.emit('send_message', {
     teamId: State.currentTid,
     senderId: user.id,
@@ -435,13 +528,10 @@ function renderMsg(m) {
   const container = document.getElementById('chat-msgs');
   const div = document.createElement('div');
   const isMe = (m.sender_id || m.senderId) == user.id;
-
   div.className = `msg ${isMe ? 'sent' : 'received'}`;
   div.innerHTML = `
     <div style="font-size:9px; font-weight:900; margin-bottom:3px; opacity:0.4;">${isMe ? 'YOU' : (m.sender_name || m.senderName)}</div>
-    <div>${m.content || m.message}</div>
-  `;
-
+    <div>${m.content || m.message}</div>`;
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
 }
@@ -460,16 +550,14 @@ async function openManageModal(tid, tname) {
     const res = await fetch(`${API}/applications/team/${tid}`, { headers: { 'Authorization': `Bearer ${token}` } });
     if (!res.ok) throw new Error("Failed to fetch applications");
     const apps = await res.json();
-
     const pending = apps.filter(a => a.status === 'pending');
     const accepted = apps.filter(a => a.status === 'accepted');
 
     const renderAppCard = (a, isPending) => `
-      <div style="background:var(--surface2); border:1.5px solid var(--border-med); border-radius:var(--radius-sm); padding:15px; position:relative;">
+      <div style="background:var(--surface2); border:1.5px solid var(--border-med); border-radius:var(--radius-sm); padding:15px;">
         <div style="font-weight:800; font-family:var(--font-ui); font-size:14px; margin-bottom:5px;">${a.applicant_name}</div>
         <div style="font-size:11px; opacity:0.6; margin-bottom:10px;">ROLE: ${a.role.toUpperCase()}</div>
         ${a.message ? `<div style="font-size:12px; margin-bottom:10px; background:var(--bg); padding:10px; border-radius:var(--radius-xs);">${a.message}</div>` : ''}
-        
         <div style="display:flex; gap:8px;">
           ${isPending ? `
             <button onclick="updateAppStatus(${a.id}, 'accepted')" style="flex:1; padding:8px; background:var(--green); border:none; border-radius:99px; font-weight:800; font-size:11px; cursor:pointer;">ACCEPT</button>
@@ -478,12 +566,14 @@ async function openManageModal(tid, tname) {
             <button onclick="updateAppStatus(${a.id}, 'rejected')" style="width:100%; padding:8px; background:var(--red); color:white; border:none; border-radius:99px; font-weight:800; font-size:11px; cursor:pointer;">KICK MEMBER</button>
           `}
         </div>
-      </div>
-    `;
+      </div>`;
 
-    document.getElementById('manage-pending-list').innerHTML = pending.length ? pending.map(a => renderAppCard(a, true)).join('') : '<p style="opacity:0.5; font-size:12px; text-align:center; padding:20px;">No pending applications.</p>';
-    document.getElementById('manage-members-list').innerHTML = accepted.length ? accepted.map(a => renderAppCard(a, false)).join('') : '<p style="opacity:0.5; font-size:12px; text-align:center; padding:20px;">No members yet.</p>';
-
+    document.getElementById('manage-pending-list').innerHTML = pending.length
+      ? pending.map(a => renderAppCard(a, true)).join('')
+      : '<p style="opacity:0.5; font-size:12px; text-align:center; padding:20px;">No pending applications.</p>';
+    document.getElementById('manage-members-list').innerHTML = accepted.length
+      ? accepted.map(a => renderAppCard(a, false)).join('')
+      : '<p style="opacity:0.5; font-size:12px; text-align:center; padding:20px;">No members yet.</p>';
   } catch (err) {
     document.getElementById('manage-pending-list').innerHTML = '<p style="color:var(--red); text-align:center;">Error loading data.</p>';
     document.getElementById('manage-members-list').innerHTML = '';
@@ -491,7 +581,7 @@ async function openManageModal(tid, tname) {
 }
 
 async function updateAppStatus(appId, status) {
-  if (status === 'rejected' && !confirm(`Are you sure?`)) return;
+  if (status === 'rejected' && !confirm('Are you sure?')) return;
   try {
     const res = await fetch(`${API}/applications/${appId}/status`, {
       method: 'PUT',
@@ -505,9 +595,7 @@ async function updateAppStatus(appId, status) {
     }
     showAlert(`Successfully ${status}!`);
     openManageModal(State.manageTid, State.manageTname);
-  } catch (err) {
-    showAlert("Network error");
-  }
+  } catch (err) { showAlert("Network error"); }
 }
 
 // ── ADMIN OPS ──
@@ -563,7 +651,6 @@ async function saveHackathon() {
   const name = document.getElementById('e-hack-name').value;
   const location = document.getElementById('e-hack-loc').value;
   const website_url = document.getElementById('e-hack-url').value;
-
   try {
     const res = await fetch(`${API}/hackathons/${id}`, {
       method: 'PUT',
@@ -580,47 +667,42 @@ async function saveHackathon() {
 
 // ── UTILS ──
 
-function addRoleField() {
-  const div = document.createElement('div');
-  div.style.display = 'flex'; div.style.gap = '10px'; div.style.marginBottom = '10px';
-  div.innerHTML = `<input type="text" placeholder="e.g. Frontend Dev" style="flex:1"><button class="btn-icon" style="width:45px; height:45px; background:var(--red); color:white;" onclick="this.parentElement.remove()"><i class="fa-solid fa-minus"></i></button>`;
-  document.getElementById('role-inputs').appendChild(div);
-}
-
 function showAlert(text) {
   const container = document.getElementById('alerts');
   const div = document.createElement('div');
-  div.style.background = 'white'; div.style.border = '4px solid black'; div.style.padding = '15px 25px';
-  div.style.borderRadius = '15px'; div.style.boxShadow = '6px 6px 0px black';
-  div.style.marginBottom = '10px'; div.style.fontWeight = '900';
+  div.style.cssText = 'background:white; border:2px solid var(--border-med); padding:14px 20px; border-radius:14px; box-shadow:0 8px 24px rgba(0,0,0,0.1); margin-bottom:10px; font-weight:700; font-family:var(--font-ui); font-size:13px; animation:toastIn 0.22s ease;';
   div.textContent = text;
   container.appendChild(div);
   setTimeout(() => div.remove(), 4000);
 }
 
 async function fetchHackathons() {
-  const res = await fetch(`${API}/hackathons`);
-  const data = await res.json();
-  const sel = document.getElementById('h-hack');
-  if (sel) sel.innerHTML = '<option value="">NONE</option>' + data.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
+  try {
+    const res = await fetch(`${API}/hackathons`);
+    State.hackathons = await res.json();
+  } catch (err) {
+    console.warn("Could not fetch hackathons");
+    State.hackathons = [];
+  }
 }
 
 async function fetchNotifications() {
-  const res = await fetch(`${API}/notifications`, { headers: { 'Authorization': `Bearer ${token}` } });
-  const data = await res.json();
-  const unread = data.filter(n => !n.is_read).length;
-  const count = document.getElementById('notif-count');
-  if (count) {
-    count.style.display = unread > 0 ? 'flex' : 'none';
-    count.textContent = unread;
-  }
+  try {
+    const res = await fetch(`${API}/notifications`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const data = await res.json();
+    const unread = data.filter(n => !n.is_read).length;
+    const count = document.getElementById('notif-count');
+    if (count) {
+      count.style.display = unread > 0 ? 'flex' : 'none';
+      count.textContent = unread;
+    }
+  } catch (err) { console.warn("Notifications fetch failed"); }
 }
 
 function setupSocketListeners() {
   socket.on('receive_message', m => {
     if (m.teamId == State.currentTid) renderMsg(m);
   });
-
   socket.on('notification', () => {
     fetchNotifications();
     showAlert("NEW ALERT! 🔔");

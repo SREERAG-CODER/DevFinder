@@ -7,7 +7,7 @@
   <title>DevFinder — Premium Center</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jacquarda Bastarda 9:wght@400&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jacquarda+Bastarda+9:wght@400&display=swap" />
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 
@@ -87,25 +87,34 @@
       <h1 style="font-family:var(--font-title); font-size:42px; border-bottom:3px solid black; margin-bottom:25px;">NEW
         TEAM</h1>
       <button class="modal-close" data-close="modal-host"><i class="fa-solid fa-x"></i></button>
+
       <div class="field"><label>Team Name</label><input type="text" id="h-name" placeholder="e.g. Dream Team"></div>
       <div class="field"><label>Tech Stack</label><input type="text" id="h-tech" placeholder="React, Node, etc."></div>
+
       <div class="field">
         <label>Roles Needed</label>
-        <div id="role-inputs">
-          <div style="display:flex; gap:10px; margin-bottom:10px;">
-            <input type="text" placeholder="e.g. UI/UX Designer" style="flex:1">
-            <button class="btn-icon" style="width:45px; height:45px; background:var(--red); color:white;"
-              onclick="this.parentElement.remove()"><i class="fa-solid fa-minus"></i></button>
-          </div>
-        </div>
+        <div id="role-inputs"></div>
         <button class="btn-host"
-          style="width:100%; background:none; color:black; border:2px dashed black; font-size:16px; box-shadow:none;"
+          style="width:100%; background:none; color:black; border:2px dashed black; font-size:16px; box-shadow:none; margin-top:6px;"
           id="add-role-btn">+ ADD ROLE</button>
       </div>
-      <div class="field"><label>Hackathon</label><select id="h-hack"></select></div>
-      <div class="field"><label>Or Type New Hackathon</label><input type="text" id="h-hack-new" placeholder="e.g. DevHack 2026"></div>
+
+      <!-- SINGLE HACKATHON COMBOBOX -->
+      <div class="field">
+        <label>Hackathon</label>
+        <div class="combobox-wrap" id="hackathon-combobox">
+          <input type="text" id="h-hack-input" placeholder="Type or select a hackathon..." autocomplete="off" />
+          <div class="combobox-dropdown" id="h-hack-dropdown"></div>
+        </div>
+        <!-- Hidden field stores the selected existing hackathon id, if any -->
+        <input type="hidden" id="h-hack-id">
+      </div>
+
       <div class="field"><label>Deadline</label><input type="date" id="h-date"></div>
-      <button class="btn-host" style="width:100%; margin-top:15px; text-align:center; display:flex; align-items:center; justify-content:center;" type="button" id="publish-team-btn">PUBLISH SQUAD</button>
+
+      <button class="btn-host"
+        style="width:100%; margin-top:15px; text-align:center; display:flex; align-items:center; justify-content:center;"
+        type="button" id="publish-team-btn">PUBLISH SQUAD</button>
     </div>
   </div>
 
@@ -172,35 +181,35 @@
   <!-- EDIT HACKATHON MODAL -->
   <div class="modal-bg" id="modal-edit-hack">
     <div class="modal-content" style="width:500px;">
-      <h1 style="font-family:var(--font-title); font-size:42px; border-bottom:3px solid black; margin-bottom:25px;">EDIT HACKATHON</h1>
+      <h1 style="font-family:var(--font-title); font-size:42px; border-bottom:3px solid black; margin-bottom:25px;">EDIT
+        HACKATHON</h1>
       <button class="modal-close" data-close="modal-edit-hack"><i class="fa-solid fa-x"></i></button>
       <input type="hidden" id="e-hack-id">
       <div class="field"><label>Hackathon Name</label><input type="text" id="e-hack-name"></div>
       <div class="field"><label>Location</label><input type="text" id="e-hack-loc"></div>
       <div class="field"><label>Website URL</label><input type="text" id="e-hack-url"></div>
-      <button class="btn-host" style="width:100%; margin-top:15px; background:var(--yellow); color:black;" id="save-hack-btn">SAVE CHANGES</button>
+      <button class="btn-host" style="width:100%; margin-top:15px; background:var(--yellow); color:black;"
+        id="save-hack-btn">SAVE CHANGES</button>
     </div>
   </div>
 
   <!-- MANAGE TEAM MODAL -->
   <div class="modal-bg" id="modal-manage">
     <div class="modal-content" style="width:750px; max-height:85vh; display:flex; flex-direction:column;">
-      <h1 style="font-family:var(--font-title); font-size:42px; border-bottom:3px solid black; margin-bottom:20px;" id="manage-title">MANAGE TEAM</h1>
+      <h1 style="font-family:var(--font-title); font-size:42px; border-bottom:3px solid black; margin-bottom:20px;"
+        id="manage-title">MANAGE TEAM</h1>
       <button class="modal-close" data-close="modal-manage"><i class="fa-solid fa-x"></i></button>
-      
       <div style="display:flex; gap:20px; flex:1; overflow:hidden; min-height:400px;">
-        <!-- PENDING APPLICATIONS -->
         <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
           <h3 style="font-family:var(--font-title); font-size:24px; color:var(--yellow-dark);">PENDING</h3>
-          <div id="manage-pending-list" style="flex:1; overflow-y:auto; padding-right:5px; display:flex; flex-direction:column; gap:10px;">
-          </div>
+          <div id="manage-pending-list"
+            style="flex:1; overflow-y:auto; padding-right:5px; display:flex; flex-direction:column; gap:10px;"></div>
         </div>
-
-        <!-- CURRENT MEMBERS -->
-        <div style="flex:1; display:flex; flex-direction:column; gap:10px; padding-left:20px; border-left:2px dashed var(--border-med);">
+        <div
+          style="flex:1; display:flex; flex-direction:column; gap:10px; padding-left:20px; border-left:2px dashed var(--border-med);">
           <h3 style="font-family:var(--font-title); font-size:24px; color:var(--green-dark);">MEMBERS</h3>
-          <div id="manage-members-list" style="flex:1; overflow-y:auto; padding-right:5px; display:flex; flex-direction:column; gap:10px;">
-          </div>
+          <div id="manage-members-list"
+            style="flex:1; overflow-y:auto; padding-right:5px; display:flex; flex-direction:column; gap:10px;"></div>
         </div>
       </div>
     </div>
