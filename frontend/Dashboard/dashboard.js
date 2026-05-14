@@ -9,6 +9,7 @@ const socket = io(BASE_URL);
 const State = {
   isAdmin: false,
   allTeams: [],
+  myApplications: [], // { team_id, status }
   currentTid: null,
   activeNav: 'all',
   manageTid: null,
@@ -26,6 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     document.getElementById('u-name').textContent = user.name.toUpperCase();
     await checkAdmin();
+    await fetchMyApplications();
     await fetchTeams();
     await fetchHackathons();
     await fetchNotifications();
@@ -71,6 +73,27 @@ function injectNotifPanel() {
 
 // ── CORE LOGIC ──
 
+// ── FETCH MY APPLICATIONS ──
+
+async function fetchMyApplications() {
+  try {
+    const res = await fetch(`${API}/applications/me`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      // Store as a map: team_id -> status for O(1) lookup
+      State.myApplications = {};
+      data.forEach(a => {
+        State.myApplications[a.team_id] = a.status;
+      });
+    }
+  } catch (err) {
+    console.warn("Could not fetch user applications");
+    State.myApplications = {};
+  }
+}
+
 async function checkAdmin() {
   try {
     const res = await fetch(`${API}/users/me`, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -98,6 +121,28 @@ async function fetchTeams() {
     console.error("Fetch Teams failed:", err);
     showAlert("FAILED TO LOAD TEAMS");
   }
+}
+
+// ── APPLY BUTTON RENDERER ──
+
+function renderApplyButton(t) {
+  // Own team
+  if (t.created_by === user.id) {
+    return `<button class="btn-apply" style="background:var(--surface2); color:var(--text-3); cursor:default; pointer-events:none; border:1.5px dashed var(--border-med);">YOUR TEAM</button>`;
+  }
+
+  const status = State.myApplications[t.id];
+
+  if (status === 'accepted') {
+    return `<button class="btn-apply" style="background:var(--green); color:var(--green-dark); cursor:default; pointer-events:none; font-weight:800;">✅ ACCEPTED</button>`;
+  }
+
+  if (status === 'pending') {
+    return `<button class="btn-apply" style="background:var(--yellow-bg); color:var(--yellow-dark); cursor:default; pointer-events:none; border:1.5px solid var(--yellow-dark); font-weight:800;">⏳ APPLIED</button>`;
+  }
+
+  // rejected or never applied — show apply button
+  return `<button class="btn-apply" data-apply-id="${t.id}" data-apply-name="${t.name}" data-apply-roles='${JSON.stringify(t.roles)}'>APPLY</button>`;
 }
 
 function renderCards(teams) {
@@ -129,10 +174,7 @@ function renderCards(teams) {
       </div>
       <div class="card-footer">
         <div class="team-size">${t.team_size || 4}</div>
-        ${t.created_by === user.id
-      ? `<button class="btn-apply" style="background:var(--surface2); color:var(--text-3); cursor:default; pointer-events:none; border:1.5px dashed var(--border-med);">YOUR TEAM</button>`
-      : `<button class="btn-apply" data-apply-id="${t.id}" data-apply-name="${t.name}" data-apply-roles='${JSON.stringify(t.roles)}'>APPLY</button>`
-    }
+        ${renderApplyButton(t)}
       </div>
       ${State.isAdmin ? `
         <div style="margin-top:15px; display:flex; gap:10px;">
@@ -408,7 +450,7 @@ async function fetchNotifications() {
 
 async function submitApply() {
   try {
-    await fetch(`${API}/applications`, {
+    const res = await fetch(`${API}/applications`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
@@ -417,8 +459,16 @@ async function submitApply() {
         message: document.getElementById('a-msg').value
       })
     });
+    if (!res.ok) {
+      const data = await res.json();
+      showAlert(data.error || "APPLICATION FAILED");
+      return;
+    }
     showAlert("APPLICATION SENT! 🚀");
     closeModal('modal-apply');
+    // Refresh applications map then re-render cards so button flips to APPLIED
+    await fetchMyApplications();
+    fetchTeams();
   } catch (err) { showAlert("APPLICATION FAILED"); }
 }
 
