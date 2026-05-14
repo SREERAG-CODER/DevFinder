@@ -168,6 +168,43 @@
     </div>
   </div>
 
+  <!-- EDIT HACKATHON MODAL -->
+  <div class="modal-bg" id="modal-edit-hack">
+    <div class="modal-content" style="width:500px;">
+      <h1 style="font-family:var(--font-title); font-size:42px; border-bottom:3px solid black; margin-bottom:25px;">EDIT HACKATHON</h1>
+      <button class="modal-close" data-close="modal-edit-hack"><i class="fa-solid fa-x"></i></button>
+      <input type="hidden" id="e-hack-id">
+      <div class="field"><label>Hackathon Name</label><input type="text" id="e-hack-name"></div>
+      <div class="field"><label>Location</label><input type="text" id="e-hack-loc"></div>
+      <div class="field"><label>Website URL</label><input type="text" id="e-hack-url"></div>
+      <button class="btn-host" style="width:100%; margin-top:15px; background:var(--yellow); color:black;" id="save-hack-btn">SAVE CHANGES</button>
+    </div>
+  </div>
+
+  <!-- MANAGE TEAM MODAL -->
+  <div class="modal-bg" id="modal-manage">
+    <div class="modal-content" style="width:750px; max-height:85vh; display:flex; flex-direction:column;">
+      <h1 style="font-family:var(--font-title); font-size:42px; border-bottom:3px solid black; margin-bottom:20px;" id="manage-title">MANAGE TEAM</h1>
+      <button class="modal-close" data-close="modal-manage"><i class="fa-solid fa-x"></i></button>
+      
+      <div style="display:flex; gap:20px; flex:1; overflow:hidden; min-height:400px;">
+        <!-- PENDING APPLICATIONS -->
+        <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
+          <h3 style="font-family:var(--font-title); font-size:24px; color:var(--yellow-dark);">PENDING</h3>
+          <div id="manage-pending-list" style="flex:1; overflow-y:auto; padding-right:5px; display:flex; flex-direction:column; gap:10px;">
+          </div>
+        </div>
+
+        <!-- CURRENT MEMBERS -->
+        <div style="flex:1; display:flex; flex-direction:column; gap:10px; padding-left:20px; border-left:2px dashed var(--border-med);">
+          <h3 style="font-family:var(--font-title); font-size:24px; color:var(--green-dark);">MEMBERS</h3>
+          <div id="manage-members-list" style="flex:1; overflow-y:auto; padding-right:5px; display:flex; flex-direction:column; gap:10px;">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="alerts" style="position:fixed; top:20px; right:20px; z-index:3000;"></div>
 
   <script src="dashboard.js"></script>

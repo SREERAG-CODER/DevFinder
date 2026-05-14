@@ -91,4 +91,25 @@ router.delete("/:id", auth, async (req, res) => {
   }
 });
 
+// ── UPDATE HACKATHON (ADMIN ONLY) ─────────────────────
+router.put("/:id", auth, async (req, res) => {
+  const { id } = req.params;
+  const { name, location, website_url } = req.body;
+  try {
+    const userRes = await pool.query("SELECT is_admin FROM users WHERE id = $1", [req.user.id]);
+    if (!userRes.rows[0].is_admin) {
+        return res.status(403).json({ error: "Access denied. Admins only." });
+    }
+
+    const result = await pool.query(
+      "UPDATE hackathons SET name = $1, location = $2, website_url = $3 WHERE id = $4 RETURNING *",
+      [name, location, website_url, id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Update hackathon error:", err.message);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 module.exports = router;

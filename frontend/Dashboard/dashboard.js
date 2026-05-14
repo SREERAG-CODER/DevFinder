@@ -10,7 +10,9 @@ const State = {
   isAdmin: false,
   allTeams: [],
   currentTid: null,
-  activeNav: 'all'
+  activeNav: 'all',
+  manageTid: null,
+  manageTname: null
 };
 
 // ── BOOTSTRAP ──
@@ -105,7 +107,7 @@ function renderCards(teams) {
       ${State.isAdmin ? `
         <div style="margin-top:15px; display:flex; gap:10px;">
           <button class="admin-del-btn" data-id="${t.id}" style="flex:1; background:var(--black); color:white; border:none; border-radius:10px; padding:8px; font-weight:900; cursor:pointer;">DEL</button>
-          <button class="admin-feat-btn" data-id="${t.id}" data-feat="${!t.is_featured}" style="flex:1; background:var(--yellow); border:2px solid black; border-radius:10px; padding:8px; font-weight:900; cursor:pointer;">FEAT</button>
+          <button class="admin-feat-btn" data-id="${t.id}" data-feat="${!t.is_featured}" style="flex:1; background:${t.is_featured ? 'var(--surface2)' : 'var(--yellow)'}; border:2px solid black; border-radius:10px; padding:8px; font-weight:900; cursor:pointer;">${t.is_featured ? 'UNFEAT' : 'FEAT'}</button>
         </div>` : ''}
     </article>`).join('');
 }
@@ -142,11 +144,37 @@ function setupEventListeners() {
   document.getElementById('send-chat-btn').addEventListener('click', sendMessage);
   document.getElementById('broadcast-btn').addEventListener('click', sendBroadcast);
   
+  document.getElementById('save-hack-btn').addEventListener('click', saveHackathon);
+  
   // Admin Panel Trigger
   document.getElementById('admin-nav-btn').addEventListener('click', openAdminPanel);
 
   // Global Grid Click Delegation (For dynamic cards)
   document.getElementById('grid').addEventListener('click', e => {
+    const hackEditBtn = e.target.closest('.hack-edit-btn');
+    if (hackEditBtn) {
+      const { id, name, loc, url } = hackEditBtn.dataset;
+      document.getElementById('e-hack-id').value = id;
+      document.getElementById('e-hack-name').value = name;
+      document.getElementById('e-hack-loc').value = loc;
+      document.getElementById('e-hack-url').value = url;
+      openModal('modal-edit-hack');
+      return;
+    }
+
+    const hackDelBtn = e.target.closest('.hack-del-btn');
+    if (hackDelBtn) {
+      deleteHackathon(hackDelBtn.dataset.id);
+      return;
+    }
+
+    const manageBtn = e.target.closest('.btn-manage');
+    if (manageBtn) {
+      const { tid, tname } = manageBtn.dataset;
+      openManageModal(tid, tname);
+      return;
+    }
+
     const applyBtn = e.target.closest('[data-apply-id]');
     if (applyBtn) {
       const { applyId, applyName, applyRoles } = applyBtn.dataset;
@@ -202,7 +230,7 @@ async function handleNav(type) {
       <article class="card" style="border-color:var(--pink)">
         <div class="card-header"><div><h3 class="card-title">${t.name}</h3><p class="card-subtitle">HOSTING</p></div></div>
         <div class="roles-wrap">${(t.roles || []).map(r => `<span class="role-chip">${r}</span>`).join('')}</div>
-        <div class="card-footer"><button class="btn-apply" style="background:var(--black); color:white; width:100%" onclick="alert('Manage feature coming')">MANAGE TEAM</button></div>
+        <div class="card-footer"><button class="btn-apply btn-manage" data-tid="${t.id}" data-tname="${t.name.replace(/'/g, "&apos;")}" style="background:var(--black); color:white; width:100%">MANAGE TEAM</button></div>
       </article>`).join('');
   }
   else if (type === 'joined') {
@@ -232,7 +260,13 @@ async function handleNav(type) {
       <article class="card" style="background:var(--black); color:white">
         <h3 class="card-title" style="color:var(--yellow)">${h.name}</h3>
         <p style="font-size:12px; opacity:0.6; margin-bottom:15px;">${h.location}</p>
-        <button class="btn-apply" style="background:var(--white); color:var(--black)" onclick="window.open('${h.website_url}', '_blank')">VISIT EVENT</button>
+        <div style="display:flex; gap:10px;">
+          <button class="btn-apply" style="flex:1; background:var(--white); color:var(--black)" onclick="window.open('${h.website_url}', '_blank')">VISIT</button>
+          ${State.isAdmin ? `
+            <button class="hack-edit-btn" data-id="${h.id}" data-name="${h.name.replace(/'/g, "&apos;")}" data-loc="${(h.location||'').replace(/'/g, "&apos;")}" data-url="${(h.website_url||'').replace(/'/g, "&apos;")}" style="padding:10px; width:45px; border-radius:99px; background:var(--yellow); border:none; color:black; font-weight:800; cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
+            <button class="hack-del-btn" data-id="${h.id}" style="padding:10px; width:45px; border-radius:99px; background:var(--red); border:none; color:white; font-weight:800; cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
+          ` : ''}
+        </div>
       </article>`).join('');
   }
 }
@@ -363,6 +397,70 @@ function renderMsg(m) {
   container.scrollTop = container.scrollHeight;
 }
 
+// ── MANAGE TEAM ──
+
+async function openManageModal(tid, tname) {
+  State.manageTid = tid;
+  State.manageTname = tname;
+  document.getElementById('manage-title').textContent = `MANAGE: ${tname.toUpperCase()}`;
+  document.getElementById('manage-pending-list').innerHTML = '<p style="text-align:center; opacity:0.5; padding:20px;">LOADING...</p>';
+  document.getElementById('manage-members-list').innerHTML = '<p style="text-align:center; opacity:0.5; padding:20px;">LOADING...</p>';
+  openModal('modal-manage');
+  
+  try {
+    const res = await fetch(`${API}/applications/team/${tid}`, { headers: { 'Authorization': `Bearer ${token}` } });
+    if (!res.ok) throw new Error("Failed to fetch applications");
+    const apps = await res.json();
+    
+    const pending = apps.filter(a => a.status === 'pending');
+    const accepted = apps.filter(a => a.status === 'accepted');
+    
+    const renderAppCard = (a, isPending) => `
+      <div style="background:var(--surface2); border:1.5px solid var(--border-med); border-radius:var(--radius-sm); padding:15px; position:relative;">
+        <div style="font-weight:800; font-family:var(--font-ui); font-size:14px; margin-bottom:5px;">${a.applicant_name}</div>
+        <div style="font-size:11px; opacity:0.6; margin-bottom:10px;">ROLE: ${a.role.toUpperCase()}</div>
+        ${a.message ? `<div style="font-size:12px; margin-bottom:10px; background:var(--bg); padding:10px; border-radius:var(--radius-xs);">${a.message}</div>` : ''}
+        
+        <div style="display:flex; gap:8px;">
+          ${isPending ? `
+            <button onclick="updateAppStatus(${a.id}, 'accepted')" style="flex:1; padding:8px; background:var(--green); border:none; border-radius:99px; font-weight:800; font-size:11px; cursor:pointer;">ACCEPT</button>
+            <button onclick="updateAppStatus(${a.id}, 'rejected')" style="flex:1; padding:8px; background:var(--red); color:white; border:none; border-radius:99px; font-weight:800; font-size:11px; cursor:pointer;">REJECT</button>
+          ` : `
+            <button onclick="updateAppStatus(${a.id}, 'rejected')" style="width:100%; padding:8px; background:var(--red); color:white; border:none; border-radius:99px; font-weight:800; font-size:11px; cursor:pointer;">KICK MEMBER</button>
+          `}
+        </div>
+      </div>
+    `;
+    
+    document.getElementById('manage-pending-list').innerHTML = pending.length ? pending.map(a => renderAppCard(a, true)).join('') : '<p style="opacity:0.5; font-size:12px; text-align:center; padding:20px;">No pending applications.</p>';
+    document.getElementById('manage-members-list').innerHTML = accepted.length ? accepted.map(a => renderAppCard(a, false)).join('') : '<p style="opacity:0.5; font-size:12px; text-align:center; padding:20px;">No members yet.</p>';
+    
+  } catch (err) {
+    document.getElementById('manage-pending-list').innerHTML = '<p style="color:var(--red); text-align:center;">Error loading data.</p>';
+    document.getElementById('manage-members-list').innerHTML = '';
+  }
+}
+
+async function updateAppStatus(appId, status) {
+  if (status === 'rejected' && !confirm(`Are you sure?`)) return;
+  try {
+    const res = await fetch(`${API}/applications/${appId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ status })
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      showAlert(data.error || "Action failed");
+      return;
+    }
+    showAlert(`Successfully ${status}!`);
+    openManageModal(State.manageTid, State.manageTname);
+  } catch (err) {
+    showAlert("Network error");
+  }
+}
+
 // ── ADMIN OPS ──
 
 async function fetchAdminStats() {
@@ -398,6 +496,37 @@ async function toggleFeature(id, f) {
     body: JSON.stringify({ is_featured: f }) 
   });
   fetchTeams();
+}
+
+async function deleteHackathon(id) {
+  if (!confirm("ADMIN: PERMANENTLY DELETE HACKATHON?")) return;
+  try {
+    const res = await fetch(`${API}/hackathons/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+    if (res.ok) {
+      showAlert("HACKATHON DELETED 🗑️");
+      handleNav('hackathons');
+    }
+  } catch (err) { showAlert("DELETE FAILED"); }
+}
+
+async function saveHackathon() {
+  const id = document.getElementById('e-hack-id').value;
+  const name = document.getElementById('e-hack-name').value;
+  const location = document.getElementById('e-hack-loc').value;
+  const website_url = document.getElementById('e-hack-url').value;
+
+  try {
+    const res = await fetch(`${API}/hackathons/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ name, location, website_url })
+    });
+    if (res.ok) {
+      closeModal('modal-edit-hack');
+      showAlert("HACKATHON UPDATED ✅");
+      handleNav('hackathons');
+    }
+  } catch (err) { showAlert("UPDATE FAILED"); }
 }
 
 // ── UTILS ──

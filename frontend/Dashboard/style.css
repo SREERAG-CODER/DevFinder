@@ -431,6 +431,8 @@ body {
   margin: 0 0 16px;
   min-height: 48px;
   flex: 1;
+  align-items: flex-start;
+  align-content: flex-start;
 }
 
 .role-chip {
