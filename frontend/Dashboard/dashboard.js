@@ -1,8 +1,8 @@
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const BASE_URL = IS_LOCAL ? 'http://127.0.0.1:5000' : 'https://devfinder-backend-ll4g.onrender.com'; // TODO: Replace with your Render URL
-const API      = `${BASE_URL}/api`;
-const token  = localStorage.getItem('token');
-const user   = JSON.parse(localStorage.getItem('user') || 'null');
+const API = `${BASE_URL}/api`;
+const token = localStorage.getItem('token');
+const user = JSON.parse(localStorage.getItem('user') || 'null');
 const socket = io(BASE_URL);
 
 // ── GLOBAL STATE ──
@@ -22,23 +22,23 @@ if (!token || !user) {
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log("DevFinder Dashboard Initializing...");
-  
+
   try {
     // 1. Setup UI
     document.getElementById('u-name').textContent = user.name.toUpperCase();
-    
+
     // 2. Initial Data Load
     await checkAdmin();
     await fetchTeams();
     await fetchHackathons();
     await fetchNotifications();
-    
+
     // 3. Setup Listeners
     setupEventListeners();
-    
+
     // 4. Socket Listeners
     setupSocketListeners();
-    
+
     console.log("Dashboard Ready ✅");
   } catch (err) {
     console.error("Critical Init Error:", err);
@@ -67,11 +67,11 @@ async function fetchTeams() {
     const search = document.getElementById('search-bar').value;
     const res = await fetch(`${API}/teams`);
     State.allTeams = await res.json();
-    
-    const filtered = State.allTeams.filter(t => 
+
+    const filtered = State.allTeams.filter(t =>
       t.name.toLowerCase().includes(search.toLowerCase())
     );
-    
+
     renderCards(filtered);
   } catch (err) {
     console.error("Fetch Teams failed:", err);
@@ -85,7 +85,7 @@ function renderCards(teams) {
     grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:100px; opacity:0.2"><h1>VOID</h1></div>`;
     return;
   }
-  
+
   grid.innerHTML = teams.map(t => `
     <article class="card">
       <div class="card-header">
@@ -136,7 +136,7 @@ function setupEventListeners() {
   document.getElementById('host-trigger').addEventListener('click', () => openModal('modal-host'));
   document.getElementById('notif-trigger').addEventListener('click', () => toggleNotifs());
   document.getElementById('logout-btn').addEventListener('click', logout);
-  
+
   // Modal Closing (Delegation)
   document.querySelectorAll('[data-close]').forEach(btn => {
     btn.addEventListener('click', () => closeModal(btn.dataset.close));
@@ -150,9 +150,9 @@ function setupEventListeners() {
   document.getElementById('submit-application-btn').addEventListener('click', submitApply);
   document.getElementById('send-chat-btn').addEventListener('click', sendMessage);
   document.getElementById('broadcast-btn').addEventListener('click', sendBroadcast);
-  
+
   document.getElementById('save-hack-btn').addEventListener('click', saveHackathon);
-  
+
   // Admin Panel Trigger
   document.getElementById('admin-nav-btn').addEventListener('click', openAdminPanel);
 
@@ -225,7 +225,7 @@ function setupEventListeners() {
 async function handleNav(type) {
   State.activeNav = type;
   const grid = document.getElementById('grid');
-  
+
   if (type === 'all') fetchTeams();
   else if (type === 'recommended') {
     const res = await fetch(`${API}/teams/recommended`, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -281,7 +281,7 @@ async function handleNav(type) {
         <div style="display:flex; gap:10px;">
           <button class="btn-apply" style="flex:1; background:var(--white); color:var(--black)" onclick="window.open('${h.website_url}', '_blank')">VISIT</button>
           ${State.isAdmin ? `
-            <button class="hack-edit-btn" data-id="${h.id}" data-name="${h.name.replace(/'/g, "&apos;")}" data-loc="${(h.location||'').replace(/'/g, "&apos;")}" data-url="${(h.website_url||'').replace(/'/g, "&apos;")}" style="padding:10px; width:45px; border-radius:99px; background:var(--yellow); border:none; color:black; font-weight:800; cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
+            <button class="hack-edit-btn" data-id="${h.id}" data-name="${h.name.replace(/'/g, "&apos;")}" data-loc="${(h.location || '').replace(/'/g, "&apos;")}" data-url="${(h.website_url || '').replace(/'/g, "&apos;")}" style="padding:10px; width:45px; border-radius:99px; background:var(--yellow); border:none; color:black; font-weight:800; cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
             <button class="hack-del-btn" data-id="${h.id}" style="padding:10px; width:45px; border-radius:99px; background:var(--red); border:none; color:white; font-weight:800; cursor:pointer;"><i class="fa-solid fa-trash"></i></button>
           ` : ''}
         </div>
@@ -309,17 +309,23 @@ function openApplyModal(id, name, roles) {
 // ── ACTION HANDLERS ──
 
 async function submitTeam() {
-  const roles = [...document.querySelectorAll('#role-inputs input')].map(i => i.value).filter(Boolean);
-  const name = document.getElementById('h-name').value;
-  if (!name || roles.length === 0) return showAlert("NAME & ROLES REQUIRED");
+  const name = document.getElementById('h-name').value.trim();
+  const roles = [...document.querySelectorAll('#role-inputs input')]
+    .map(i => i.value.trim())
+    .filter(Boolean);
+  const techRaw = document.getElementById('h-tech').value;
+  const tech_stack = techRaw
+    ? techRaw.split(',').map(s => s.trim()).filter(Boolean)
+    : [];
+
+  if (!name) return showAlert("TEAM NAME IS REQUIRED");
+  if (roles.length === 0) return showAlert("ADD AT LEAST ONE ROLE");
 
   try {
-    // Determine hackathon_id: either from select or create new
-    let hackathon_id = document.getElementById('h-hack').value;
-    const newHackName = document.getElementById('h-hack-new') ? document.getElementById('h-hack-new').value.trim() : '';
+    let hackathon_id = document.getElementById('h-hack').value || null;
+    const newHackName = document.getElementById('h-hack-new')?.value.trim();
 
     if (!hackathon_id && newHackName) {
-      // Create a new hackathon
       const hackRes = await fetch(`${API}/hackathons`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -328,22 +334,21 @@ async function submitTeam() {
       if (hackRes.ok) {
         const hackData = await hackRes.json();
         hackathon_id = hackData.id;
-      } else {
-        console.warn("Could not create hackathon, proceeding without.");
       }
     }
 
     const res = await fetch(`${API}/teams`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ 
-        name, 
-        tech_stack: document.getElementById('h-tech').value.split(',').map(s => s.trim()),
-        roles, 
-        deadline: document.getElementById('h-date').value, 
-        hackathon_id: hackathon_id || null 
+      body: JSON.stringify({
+        name,
+        tech_stack,
+        roles,
+        deadline: document.getElementById('h-date').value || null,
+        hackathon_id: hackathon_id || null
       })
     });
+
     if (res.ok) {
       closeModal('modal-host');
       fetchTeams();
@@ -353,9 +358,9 @@ async function submitTeam() {
       const errData = await res.json();
       showAlert(errData.error || "PUBLISH FAILED");
     }
-  } catch (err) { 
+  } catch (err) {
     console.error("Submit team error:", err);
-    showAlert("SUBMISSION FAILED"); 
+    showAlert("SUBMISSION FAILED");
   }
 }
 
@@ -364,10 +369,10 @@ async function submitApply() {
     await fetch(`${API}/applications`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ 
-        team_id: State.currentTid, 
-        role: document.getElementById('a-role').value, 
-        message: document.getElementById('a-msg').value 
+      body: JSON.stringify({
+        team_id: State.currentTid,
+        role: document.getElementById('a-role').value,
+        message: document.getElementById('a-msg').value
       })
     });
     showAlert("APPLICATION SENT! 🚀");
@@ -380,19 +385,19 @@ async function submitApply() {
 function openChat(tid, name) {
   console.log(`Opening chat for team ${tid}: ${name}`);
   State.currentTid = tid;
-  
+
   const titleEl = document.getElementById('chat-title');
   const msgsEl = document.getElementById('chat-msgs');
-  
+
   if (titleEl) titleEl.textContent = name.toUpperCase();
   if (msgsEl) msgsEl.innerHTML = '<p style="text-align:center; padding:20px; opacity:0.5; font-weight:900;">SYNCING CHANNEL...</p>';
-  
+
   openModal('modal-chat');
-  
+
   // Join room
   console.log("Emitting join_room:", tid);
   socket.emit('join_room', tid);
-  
+
   // Fetch History
   fetch(`${API}/chat/${tid}`, { headers: { 'Authorization': `Bearer ${token}` } })
     .then(r => r.json())
@@ -416,7 +421,7 @@ function openChat(tid, name) {
 function sendMessage() {
   const input = document.getElementById('chat-input');
   if (!input.value.trim() || !State.currentTid) return;
-  
+
   socket.emit('send_message', {
     teamId: State.currentTid,
     senderId: user.id,
@@ -430,13 +435,13 @@ function renderMsg(m) {
   const container = document.getElementById('chat-msgs');
   const div = document.createElement('div');
   const isMe = (m.sender_id || m.senderId) == user.id;
-  
+
   div.className = `msg ${isMe ? 'sent' : 'received'}`;
   div.innerHTML = `
     <div style="font-size:9px; font-weight:900; margin-bottom:3px; opacity:0.4;">${isMe ? 'YOU' : (m.sender_name || m.senderName)}</div>
     <div>${m.content || m.message}</div>
   `;
-  
+
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
 }
@@ -450,15 +455,15 @@ async function openManageModal(tid, tname) {
   document.getElementById('manage-pending-list').innerHTML = '<p style="text-align:center; opacity:0.5; padding:20px;">LOADING...</p>';
   document.getElementById('manage-members-list').innerHTML = '<p style="text-align:center; opacity:0.5; padding:20px;">LOADING...</p>';
   openModal('modal-manage');
-  
+
   try {
     const res = await fetch(`${API}/applications/team/${tid}`, { headers: { 'Authorization': `Bearer ${token}` } });
     if (!res.ok) throw new Error("Failed to fetch applications");
     const apps = await res.json();
-    
+
     const pending = apps.filter(a => a.status === 'pending');
     const accepted = apps.filter(a => a.status === 'accepted');
-    
+
     const renderAppCard = (a, isPending) => `
       <div style="background:var(--surface2); border:1.5px solid var(--border-med); border-radius:var(--radius-sm); padding:15px; position:relative;">
         <div style="font-weight:800; font-family:var(--font-ui); font-size:14px; margin-bottom:5px;">${a.applicant_name}</div>
@@ -475,10 +480,10 @@ async function openManageModal(tid, tname) {
         </div>
       </div>
     `;
-    
+
     document.getElementById('manage-pending-list').innerHTML = pending.length ? pending.map(a => renderAppCard(a, true)).join('') : '<p style="opacity:0.5; font-size:12px; text-align:center; padding:20px;">No pending applications.</p>';
     document.getElementById('manage-members-list').innerHTML = accepted.length ? accepted.map(a => renderAppCard(a, false)).join('') : '<p style="opacity:0.5; font-size:12px; text-align:center; padding:20px;">No members yet.</p>';
-    
+
   } catch (err) {
     document.getElementById('manage-pending-list').innerHTML = '<p style="color:var(--red); text-align:center;">Error loading data.</p>';
     document.getElementById('manage-members-list').innerHTML = '';
@@ -518,10 +523,10 @@ async function fetchAdminStats() {
 async function sendBroadcast() {
   const msg = document.getElementById('admin-bc').value;
   if (!msg) return;
-  await fetch(`${API}/admin/broadcast`, { 
-    method: 'POST', 
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
-    body: JSON.stringify({ message: msg }) 
+  await fetch(`${API}/admin/broadcast`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ message: msg })
   });
   showAlert("BROADCAST SENT! 📢");
   document.getElementById('admin-bc').value = '';
@@ -534,10 +539,10 @@ async function deleteTeam(id) {
 }
 
 async function toggleFeature(id, f) {
-  await fetch(`${API}/admin/feature-team/${id}`, { 
-    method: 'PUT', 
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
-    body: JSON.stringify({ is_featured: f }) 
+  await fetch(`${API}/admin/feature-team/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ is_featured: f })
   });
   fetchTeams();
 }
@@ -615,16 +620,16 @@ function setupSocketListeners() {
   socket.on('receive_message', m => {
     if (m.teamId == State.currentTid) renderMsg(m);
   });
-  
+
   socket.on('notification', () => {
     fetchNotifications();
     showAlert("NEW ALERT! 🔔");
   });
 }
 
-function logout() { 
-  localStorage.clear(); 
-  window.location.href = '../Authentication/login.html'; 
+function logout() {
+  localStorage.clear();
+  window.location.href = '../Authentication/login.html';
 }
 
 function toggleNotifs() {
