@@ -362,7 +362,7 @@ body {
 
 /* ── CARDS ── */
 .card {
-  background-color: linear-gradient(135deg, #138549, #51a379);
+  background-color: linear-gradient(135deg, #86e1b0, #51a379);
   border: 1.5px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 22px;
