@@ -1127,10 +1127,14 @@ body {
     position: static !important;
   }
 
+  /* ── AVATAR ISLAND ── */
   .avatar-island {
-    padding: 24px 18px;
+    padding: 24px 16px;
     gap: 14px;
     border-radius: 20px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   .big-avatar-wrap {
@@ -1143,25 +1147,97 @@ body {
   }
 
   .avatar-name {
-    font-size: 28px;
+    font-size: 26px;
+    word-break: break-word;
+    text-align: center;
   }
 
   .avatar-email {
     font-size: 11px;
+    word-break: break-all;
+    text-align: center;
   }
 
+  /* ── STAT ROW — prevent overflow ── */
   .stat-row {
+    width: 100%;
+    display: flex;
     gap: 8px;
+    box-sizing: border-box;
+  }
+
+  .stat-chip {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 6px;
+    overflow: hidden;
   }
 
   .stat-number {
-    font-size: 22px;
+    font-size: 20px;
+    line-height: 1;
   }
 
   .stat-label {
     font-size: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
+  /* ── SOCIAL ROW — prevent overflow ── */
+  .social-row {
+    width: 100%;
+    display: flex;
+    gap: 10px;
+    box-sizing: border-box;
+  }
+
+  .social-btn {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* ── LINKS ISLAND ── */
+  .links-island {
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .link-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    font-size: 12px;
+  }
+
+  /* ── ABOUT + HOSTED ISLANDS ── */
+  .about-island,
+  .hosted-island {
+    padding: 20px 16px;
+    border-radius: 20px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .section-hero {
+    font-size: 40px;
+  }
+
+  .about-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .bio-text {
+    font-size: 13px;
+    word-break: break-word;
+  }
+
+  /* ── EDIT MODE ── */
   .edit-field-grid {
     grid-template-columns: 1fr !important;
   }
@@ -1175,11 +1251,14 @@ body {
     width: 100%;
   }
 
+  /* ── HOSTED TEAM CARDS ── */
   .hosted-team-card {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
     padding: 16px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .hosted-team-card .btn-host {
@@ -1187,24 +1266,17 @@ body {
     justify-content: center;
   }
 
-  .about-island {
-    padding: 20px 16px;
-    border-radius: 20px;
+  .hosted-team-name {
+    font-size: 20px;
+    word-break: break-word;
   }
 
-  .section-hero {
-    font-size: 40px;
-  }
-
-  .about-header {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
+  /* ── APPLICANTS MODAL ── */
   #modal-applicants .modal-content {
     width: 100% !important;
   }
 
+  /* ── TOP BAR ── */
   .top-bar {
     gap: 10px;
   }
@@ -1217,6 +1289,17 @@ body {
   #edit-trigger-btn {
     font-size: 11px;
     padding: 8px 14px;
+  }
+
+  /* ── SCROLL AREA containment ── */
+  .scroll-area {
+    overflow-x: hidden;
+  }
+
+  /* ── MAIN AREA containment ── */
+  .main-area {
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 }
 
