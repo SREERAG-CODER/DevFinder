@@ -242,6 +242,31 @@
 
   <div id="alerts" style="position:fixed; top:20px; right:20px; z-index:3000;"></div>
 
+  <!-- ADD HACKATHON MODAL (admin only) -->
+  <div class="modal-bg" id="modal-add-hack">
+    <div class="modal-content" style="width:500px;">
+      <h1 style="font-family:var(--font-title); font-size:42px; border-bottom:3px solid black; margin-bottom:25px;">ADD
+        HACKATHON</h1>
+      <button class="modal-close" data-close="modal-add-hack"><i class="fa-solid fa-x"></i></button>
+      <div class="field"><label>Hackathon Name *</label><input type="text" id="ah-name" placeholder="e.g. HackMIT 2026">
+      </div>
+      <div class="field"><label>Description</label><textarea id="ah-desc" placeholder="Short description..."
+          style="height:80px;"></textarea></div>
+      <div class="field"><label>Website URL</label><input type="text" id="ah-url" placeholder="https://..."></div>
+      <div class="field"><label>Location</label><input type="text" id="ah-loc" placeholder="Online / City, Country">
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+        <div class="field"><label>Start Date</label><input type="date" id="ah-start"></div>
+        <div class="field"><label>End Date</label><input type="date" id="ah-end"></div>
+      </div>
+      <button class="btn-host"
+        style="width:100%; margin-top:10px; text-align:center; display:flex; align-items:center; justify-content:center; background:var(--yellow); color:black;"
+        id="submit-add-hack-btn">
+        <i class="fa-solid fa-trophy"></i>&nbsp; PUBLISH HACKATHON
+      </button>
+    </div>
+  </div>
+
   <script src="dashboard.js"></script>
 </body>
 

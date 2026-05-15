@@ -224,6 +224,7 @@ function setupEventListeners() {
   document.getElementById('send-chat-btn').addEventListener('click', sendMessage);
   document.getElementById('broadcast-btn').addEventListener('click', sendBroadcast);
   document.getElementById('save-hack-btn').addEventListener('click', saveHackathon);
+  document.getElementById('submit-add-hack-btn').addEventListener('click', submitAddHackathon);
   document.getElementById('admin-nav-btn').addEventListener('click', openAdminPanel);
 
   document.getElementById('grid').addEventListener('click', e => {
@@ -322,29 +323,47 @@ async function handleNav(type) {
   else if (type === 'hackathons') {
     const res = await fetch(`${API}/hackathons`);
     const data = await res.json();
-    grid.innerHTML = data.map(h => `
-      <article class="card" style="background:var(--black); color:white">
-        <h3 class="card-title" style="color:var(--yellow)">${h.name}</h3>
-        <p style="font-size:12px; opacity:0.6; margin-bottom:15px;">${h.location || ''}</p>
-        <div style="display:flex; gap:10px;">
-          <button class="btn-apply" style="flex:1; background:var(--white); color:var(--black)"
-            onclick="window.open('${h.website_url || '#'}', '_blank')">VISIT</button>
-          ${State.isAdmin ? `
-            <button class="hack-edit-btn"
-              data-id="${h.id}"
-              data-name="${h.name.replace(/'/g, "&apos;")}"
-              data-loc="${(h.location || '').replace(/'/g, "&apos;")}"
-              data-url="${(h.website_url || '').replace(/'/g, "&apos;")}"
-              style="padding:10px; width:45px; border-radius:99px; background:var(--yellow); border:none; color:black; font-weight:800; cursor:pointer;">
-              <i class="fa-solid fa-pen"></i>
-            </button>
-            <button class="hack-del-btn" data-id="${h.id}"
-              style="padding:10px; width:45px; border-radius:99px; background:var(--red); border:none; color:white; font-weight:800; cursor:pointer;">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          ` : ''}
-        </div>
-      </article>`).join('');
+
+    // Admin "Add Hackathon" button row
+    const adminBar = State.isAdmin
+      ? `<div style="grid-column:1/-1; display:flex; justify-content:flex-end; margin-bottom:4px;">
+        <button id="open-add-hack-btn" class="btn-host" style="background:var(--yellow); color:black; gap:8px;">
+          <i class="fa-solid fa-plus"></i> ADD HACKATHON
+        </button>
+       </div>`
+      : '';
+
+    grid.innerHTML = adminBar + data.map(h => `
+    <article class="card" style="background:var(--black); color:white">
+      <h3 class="card-title" style="color:var(--yellow)">${h.name}</h3>
+      <p style="font-size:12px; opacity:0.6; margin-bottom:6px;">${h.location || ''}</p>
+      ${h.description ? `<p style="font-size:11px; opacity:0.5; margin-bottom:10px; line-height:1.5;">${h.description}</p>` : ''}
+      ${h.start_date ? `<p style="font-size:10px; font-weight:800; opacity:0.5; margin-bottom:10px; text-transform:uppercase;"><i class="fa-regular fa-calendar" style="margin-right:5px;"></i>${new Date(h.start_date).toLocaleDateString()} – ${h.end_date ? new Date(h.end_date).toLocaleDateString() : 'TBD'}</p>` : ''}
+      <div style="display:flex; gap:10px; margin-top:auto;">
+        <button class="btn-apply" style="flex:1; background:var(--white); color:var(--black)"
+          onclick="window.open('${h.website_url || '#'}', '_blank')">VISIT</button>
+        ${State.isAdmin ? `
+          <button class="hack-edit-btn"
+            data-id="${h.id}"
+            data-name="${h.name.replace(/'/g, "&apos;")}"
+            data-loc="${(h.location || '').replace(/'/g, "&apos;")}"
+            data-url="${(h.website_url || '').replace(/'/g, "&apos;")}"
+            style="padding:10px; width:45px; border-radius:99px; background:var(--yellow); border:none; color:black; font-weight:800; cursor:pointer;">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          <button class="hack-del-btn" data-id="${h.id}"
+            style="padding:10px; width:45px; border-radius:99px; background:var(--red); border:none; color:white; font-weight:800; cursor:pointer;">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        ` : ''}
+      </div>
+    </article>`).join('');
+
+    // Wire up the admin Add button after render
+    if (State.isAdmin) {
+      const addBtn = document.getElementById('open-add-hack-btn');
+      if (addBtn) addBtn.addEventListener('click', () => openModal('modal-add-hack'));
+    }
   }
 }
 
@@ -716,6 +735,49 @@ async function saveHackathon() {
       handleNav('hackathons');
     }
   } catch (err) { showAlert("UPDATE FAILED"); }
+}
+
+async function submitAddHackathon() {
+  const name = document.getElementById('ah-name').value.trim();
+  if (!name) return showAlert("⚠️ HACKATHON NAME IS REQUIRED");
+
+  const btn = document.getElementById('submit-add-hack-btn');
+  btn.textContent = 'PUBLISHING...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/hackathons`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        name,
+        description: document.getElementById('ah-desc').value.trim(),
+        website_url: document.getElementById('ah-url').value.trim(),
+        location: document.getElementById('ah-loc').value.trim() || 'Online',
+        start_date: document.getElementById('ah-start').value || null,
+        end_date: document.getElementById('ah-end').value || null,
+      })
+    });
+
+    if (res.ok) {
+      closeModal('modal-add-hack');
+      showAlert("HACKATHON PUBLISHED! 🏆");
+      // Clear fields
+      ['ah-name', 'ah-desc', 'ah-url', 'ah-loc', 'ah-start', 'ah-end'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+      await fetchHackathons();       // refresh combobox cache
+      handleNav('hackathons');       // re-render the grid
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showAlert(err.error || "PUBLISH FAILED");
+    }
+  } catch (e) {
+    showAlert("NETWORK ERROR");
+  } finally {
+    btn.innerHTML = '<i class="fa-solid fa-trophy"></i>&nbsp; PUBLISH HACKATHON';
+    btn.disabled = false;
+  }
 }
 
 // ── UTILS ──
