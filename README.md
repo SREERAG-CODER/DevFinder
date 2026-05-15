@@ -50,10 +50,10 @@ The platform serves two distinct experiences:
 
 ## 4. Team Details
 Engineered with passion by:
-* **SREERAG T C** - AM.SC.U4CSE25252
-* **ARYAN RAJESH** - AM.SC.U4CSE25206
-* **NIVED KRISHNA** - AM.SC.U4CSE25265
-* **ABHISHEK R PILLAI** - AM.SC.U4CSE25266
+* **SREERAG T C** - AM.SC.U4CSE25252 - [https://github.com/SREERAG-CODER](https://github.com/SREERAG-CODER)
+* **ARYAN RAJESH** - AM.SC.U4CSE25206 - [https://aryan-rjsh.github.io/final-portfolio/](https://aryan-rjsh.github.io/final-portfolio/)
+* **NIVED KRISHNA** - AM.SC.U4CSE25265 - [https://niveddd-007.github.io/html-portfolio/](https://niveddd-007.github.io/html-portfolio/)
+* **ABHISHEK R PILLAI** - AM.SC.U4CSE25266 - [https://abhi221c101c-sudo.github.io/Portfolio_html_css/](https://abhi221c101c-sudo.github.io/Portfolio_html_css/)
 
 ---
 
