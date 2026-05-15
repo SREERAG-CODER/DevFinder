@@ -784,5 +784,5 @@ function setupSocketListeners() {
 
 function logout() {
   localStorage.clear();
-  window.location.href = '../Authentication/login.html';
+  window.location.href = '../Landing/index.html';
 }
