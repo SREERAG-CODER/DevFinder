@@ -887,7 +887,6 @@ body {
 
 @media (max-width: 768px) {
   body {
-    /* allow scrolling on mobile, kill fixed height */
     height: auto;
     min-height: 100vh;
     overflow: auto;
@@ -896,9 +895,6 @@ body {
     gap: 10px;
   }
 
-  /* ══════════════════════════════
-     SIDEBAR → bottom nav bar
-  ══════════════════════════════ */
   .sidebar {
     width: 100%;
     height: auto;
@@ -907,15 +903,12 @@ body {
     flex-direction: column;
     gap: 0;
     order: 2;
-    /* push below main content */
   }
 
-  /* hide name/role text in sidebar on mobile — too cramped */
   .user-profile {
     display: none;
   }
 
-  /* nav becomes a horizontal scrollable pill row */
   .nav-list {
     flex-direction: row;
     overflow-x: auto;
@@ -945,7 +938,6 @@ body {
 
   .nav-item span {
     display: inline;
-    /* show text labels in pill nav */
   }
 
   .nav-item.active {
@@ -957,28 +949,41 @@ body {
     color: var(--green-dark);
   }
 
-  /* hide the extra links section (profile / logout) in sidebar on mobile
-     — they appear inline in the nav row instead */
+  /* ── FIX: show profile + logout as pills in the nav row ── */
   .sidebar>div[style*="margin-top:20px"] {
-    display: none !important;
+    display: contents !important;
   }
 
-  /* logout and profile as extra pills at the end of nav */
   .sidebar>div[style*="margin-top:20px"] .nav-item {
     flex-shrink: 0;
     border-radius: 99px;
     padding: 9px 14px;
     font-size: 11px;
+    color: rgba(255, 255, 255, 0.65);
+    white-space: nowrap;
+    gap: 6px;
+    display: flex;
+    align-items: center;
+  }
+
+  .sidebar>div[style*="margin-top:20px"] .nav-item i {
+    font-size: 14px;
+    width: auto;
+  }
+
+  .sidebar>div[style*="margin-top:20px"] .nav-item.danger {
+    color: #f87171;
+  }
+
+  .sidebar>div[style*="margin-top:20px"] .nav-item.danger:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
   }
 
   .sidebar-logo {
     display: none;
-    /* hide logo on mobile — saves space */
   }
 
-  /* ══════════════════════════════
-     MAIN AREA
-  ══════════════════════════════ */
   .main-area {
     width: 100%;
     min-width: 0;
@@ -986,7 +991,6 @@ body {
     gap: 10px;
   }
 
-  /* ── TOP BAR ── */
   .top-bar {
     height: auto;
     min-height: 58px;
@@ -998,7 +1002,6 @@ body {
 
   .top-bar>div:first-child {
     flex: 1 1 100%;
-    /* search bar full width */
     min-width: 0;
   }
 
@@ -1018,12 +1021,10 @@ body {
     font-size: 15px;
   }
 
-  /* ── SCROLL AREA ── */
   .scroll-area {
     border-radius: 20px;
     padding: 18px 16px 24px;
     overflow-y: visible;
-    /* let the page scroll instead */
     height: auto;
     min-height: 0;
   }
@@ -1033,7 +1034,6 @@ body {
     margin-bottom: 18px;
   }
 
-  /* ── CARDS GRID — single column on mobile ── */
   .grid {
     grid-template-columns: 1fr;
     gap: 12px;
@@ -1047,11 +1047,9 @@ body {
     font-size: 16px;
   }
 
-  /* ── MODALS — full screen on mobile ── */
   .modal-bg {
     padding: 0;
     align-items: flex-end;
-    /* slide up from bottom */
   }
 
   .modal-content {
@@ -1075,12 +1073,10 @@ body {
     }
   }
 
-  /* ── MANAGE TEAM MODAL inner layout ── */
   .modal-content>div[style*="display:flex; gap:20px"] {
     flex-direction: column !important;
   }
 
-  /* ── CHAT WINDOW ── */
   .chat-window {
     width: 100% !important;
     height: 85vh;
@@ -1097,7 +1093,6 @@ body {
     padding: 10px 14px;
   }
 
-  /* ── NOTIFICATION PANEL ── */
   #notif-panel {
     width: calc(100vw - 20px) !important;
     right: 10px !important;
@@ -1105,7 +1100,6 @@ body {
     border-radius: 16px !important;
   }
 
-  /* ── ALERTS / TOASTS ── */
   #alerts {
     top: auto !important;
     bottom: 80px;
@@ -1124,7 +1118,6 @@ body {
 ════════════════════════════════ */
 @media (max-width: 768px) {
 
-  /* Profile grid — single column */
   .profile-grid {
     grid-template-columns: 1fr !important;
     gap: 14px;
@@ -1132,10 +1125,8 @@ body {
 
   .profile-left {
     position: static !important;
-    /* unstick on mobile */
   }
 
-  /* avatar island tighter */
   .avatar-island {
     padding: 24px 18px;
     gap: 14px;
@@ -1171,7 +1162,6 @@ body {
     font-size: 8px;
   }
 
-  /* edit field grid — single column */
   .edit-field-grid {
     grid-template-columns: 1fr !important;
   }
@@ -1185,7 +1175,6 @@ body {
     width: 100%;
   }
 
-  /* hosted team card — stack vertically */
   .hosted-team-card {
     flex-direction: column;
     align-items: flex-start;
@@ -1198,7 +1187,6 @@ body {
     justify-content: center;
   }
 
-  /* about island */
   .about-island {
     padding: 20px 16px;
     border-radius: 20px;
@@ -1213,12 +1201,10 @@ body {
     gap: 8px;
   }
 
-  /* applicants modal */
   #modal-applicants .modal-content {
     width: 100% !important;
   }
 
-  /* top bar on profile page */
   .top-bar {
     gap: 10px;
   }
