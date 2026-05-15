@@ -15,36 +15,57 @@ router.get("/count", async (req, res) => {
 });
 
 // ── GET RECOMMENDED TEAMS (INTELLIGENT MATCHING) ─────
+
 router.get("/recommended", auth, async (req, res) => {
   try {
-    const userResult = await pool.query("SELECT skills FROM users WHERE id = $1", [req.user.id]);
-    const skillsStr = userResult.rows[0].skills || "";
-    const skillsArr = skillsStr.split(',').map(s => s.trim()).filter(Boolean);
+    const userResult = await pool.query(
+      "SELECT skills FROM users WHERE id = $1",
+      [req.user.id]
+    );
+
+    const rawSkills = userResult.rows[0]?.skills;
+
+    // skills may be stored as TEXT (comma-separated) or TEXT[]
+    let skillsArr = [];
+    if (Array.isArray(rawSkills)) {
+      skillsArr = rawSkills.map(s => s.trim()).filter(Boolean);
+    } else if (typeof rawSkills === "string") {
+      skillsArr = rawSkills.split(",").map(s => s.trim()).filter(Boolean);
+    }
 
     if (skillsArr.length === 0) {
       return res.json([]);
     }
 
+    // Build ILIKE conditions dynamically — one per skill
+    // Matches if ANY skill appears in tech_stack[] or roles[]
+    const conditions = skillsArr.map((_, i) => `(
+      EXISTS (SELECT 1 FROM unnest(t.tech_stack) s WHERE s ILIKE $${i + 2})
+      OR
+      EXISTS (SELECT 1 FROM unnest(t.roles) r WHERE r ILIKE $${i + 2})
+    )`).join(" OR ");
+
+    // Score = number of matching skills (for ranking)
+    const scoreExpr = skillsArr.map((_, i) => `
+      (SELECT COUNT(*) FROM unnest(t.tech_stack) s WHERE s ILIKE $${i + 2}) +
+      (SELECT COUNT(*) FROM unnest(t.roles) r WHERE r ILIKE $${i + 2})
+    `).join(" + ");
+
     const query = `
       SELECT t.*, u.name as creator_name, u.is_verified, h.name as hackathon_name,
-             (
-               SELECT COUNT(*) FROM unnest(t.tech_stack) s 
-               WHERE s ILIKE ANY($1)
-             ) + (
-               SELECT COUNT(*) FROM unnest(t.roles) r 
-               WHERE r ILIKE ANY($1)
-             ) as score
+             (${scoreExpr}) as score
       FROM teams t
       JOIN users u ON t.created_by = u.id
       LEFT JOIN hackathons h ON t.hackathon_id = h.id
-      WHERE (t.tech_stack && $2 OR t.roles && $2)
-      AND t.created_by != $3
+      WHERE t.created_by != $1
+        AND (${conditions})
       ORDER BY score DESC, t.created_at DESC
       LIMIT 10
     `;
 
-    const patterns = skillsArr.map(s => `%${s}%`);
-    const result = await pool.query(query, [patterns, skillsArr, req.user.id]);
+    // params: [userId, '%skill1%', '%skill2%', ...]
+    const params = [req.user.id, ...skillsArr.map(s => `%${s}%`)];
+    const result = await pool.query(query, params);
 
     res.json(result.rows);
   } catch (err) {
