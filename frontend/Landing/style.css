@@ -690,3 +690,180 @@ a.contact-card {
     display: flex;
     /* override browser default block on <a> */
 }
+
+/* ═══════════════════════════════════════════════════
+   DEVFINDER — LANDING PAGE MOBILE RESPONSIVE CSS
+   Paste this at the bottom of frontend/Landing/style.css
+═══════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+    /* ── NAVBAR ── */
+    .navbar {
+        padding: 16px 20px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .nav-buttons {
+        gap: 8px;
+    }
+
+    .nav-btn {
+        padding: 8px 14px;
+        font-size: 10px;
+        letter-spacing: 1.5px;
+    }
+
+    .login-button {
+        padding: 8px 18px;
+        font-size: 10px;
+    }
+
+    /* ── MAIN CONTENT ── */
+    .main-content {
+        padding: 30px 20px 40px;
+    }
+
+    .main-heading {
+        font-size: 28px;
+        margin-bottom: 14px;
+    }
+
+    .main-description {
+        font-size: 13px;
+        line-height: 1.8;
+    }
+
+    .get-started-button {
+        margin-top: 20px;
+        padding: 12px 26px;
+        font-size: 12px;
+    }
+
+    /* ── MODAL PANEL ── */
+    .brut-modal {
+        max-width: 100%;
+        max-height: 92vh;
+        box-shadow: 6px 6px 0 #0d1330;
+    }
+
+    .modal-inner {
+        padding: 16px 20px 28px;
+    }
+
+    /* ── BRUT HEADER ── */
+    .brut-title {
+        font-size: 44px;
+        letter-spacing: 1px;
+    }
+
+    .brut-subtitle {
+        font-size: 11px;
+    }
+
+    /* ── STAT CARDS — single row, smaller numbers ── */
+    .stat-row {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+    }
+
+    .stat-card {
+        padding: 14px 8px 10px;
+    }
+
+    .stat-num {
+        font-size: 32px;
+    }
+
+    .stat-label {
+        font-size: 8px;
+        letter-spacing: 1px;
+    }
+
+    /* ── FEATURE GRID — stack to 1 column ── */
+    .feature-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .feature-block {
+        padding: 12px;
+    }
+
+    .feature-title {
+        font-size: 10px;
+    }
+
+    .feature-desc {
+        font-size: 10px;
+    }
+
+    /* ── TERMINAL ── */
+    .terminal-body {
+        padding: 14px 16px 16px;
+    }
+
+    .terminal-line {
+        font-size: 11px;
+    }
+
+    /* ── CONTACT GRID — stack to 1 column ── */
+    .contact-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .contact-value {
+        font-size: 11px;
+    }
+
+    /* ── CONTACT FORM ── */
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .brut-input {
+        font-size: 12px;
+        padding: 10px 12px;
+    }
+
+    .brut-send-btn {
+        width: 100%;
+        font-size: 11px;
+        padding: 12px 20px;
+    }
+
+    /* ── MODAL CLOSE BUTTON ── */
+    .modal-close {
+        width: 30px;
+        height: 30px;
+        margin: 12px 12px 0 0;
+    }
+}
+
+@media (max-width: 400px) {
+    .main-heading {
+        font-size: 24px;
+    }
+
+    .main-description {
+        font-size: 12px;
+    }
+
+    .stat-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .stat-num {
+        font-size: 40px;
+    }
+
+    .logoPart1,
+    .logoPart2 {
+        font-size: 24px;
+    }
+}

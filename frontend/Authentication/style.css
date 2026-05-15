@@ -328,59 +328,139 @@ body {
     }
 }
 
-/* RESPONSIVE */
-@media (max-width: 1100px) {
+
+
+/* ── MOBILE ── */
+@media (max-width: 600px) {
     body {
         overflow: auto;
+        background: #e9e9e9;
     }
 
     .main-container {
+        padding: 10px;
         flex-direction: column;
-        height: auto;
-        padding: 15px;
     }
 
+    /* hide the illustration on small screens — saves vertical space */
     .left-section {
-        width: 100%;
-        height: 45vh;
-        border-radius: 18px 18px 0 0;
-    }
-
-    .left-section img {
-        border-radius: 14px 14px 0 0;
+        display: none;
     }
 
     .right-section {
         width: 100%;
         height: auto;
         margin-left: 0;
-        margin-top: 0;
-        padding: 25px 0 40px;
+        padding: 30px 0 50px;
         display: flex;
         justify-content: center;
         align-items: flex-start;
     }
 
     .login-card {
-        width: 90%;
+        width: 92%;
+        max-width: 420px;
+        padding: 32px 24px;
+        box-shadow: 6px 6px 0px #111;
     }
 
     .login-card h1 {
-        font-size: 52px;
-        line-height: 50px;
+        font-size: 44px;
+        line-height: 42px;
+        letter-spacing: -1.5px;
+    }
+
+    .login-card p {
+        font-size: 14px;
+        margin-bottom: 20px;
+    }
+
+    .input-box {
+        margin-bottom: 14px;
+    }
+
+    .input-box input {
+        padding: 15px 14px;
+        font-size: 15px;
+    }
+
+    .login-btn {
+        padding: 15px;
+        font-size: 18px;
+        box-shadow: 4px 4px 0px #111;
+    }
+
+    .social-icons {
+        gap: 10px;
+    }
+
+    .social-icons button {
+        padding: 12px 8px;
+        font-size: 14px;
+        gap: 6px;
+        box-shadow: 3px 3px 0px #111;
+    }
+
+    .signup-text {
+        font-size: 15px;
+        margin-top: 20px;
+    }
+
+    .divider {
+        margin: 16px 0;
+    }
+
+    /* signup-specific card scroll on mobile */
+    #card {
+        max-height: none;
+        overflow-y: visible;
+        margin-top: 0;
+        margin-bottom: 0;
+        padding-top: 32px;
+    }
+
+    #card h1 {
+        font-size: 40px;
+        line-height: 40px;
+    }
+
+    .strength-bar {
+        margin: -4px 0 8px;
+    }
+
+    .strength-label {
+        font-size: 12px;
+    }
+
+    .error-msg {
+        font-size: 12px;
     }
 }
 
-/* SIGNUP PAGE CARD SCROLL */
-#card {
-    max-height: 96vh;
-    overflow-y: auto;
-    padding-top: 35px;
-    margin-top: 20px;
-    margin-bottom: 20px;
-}
+/* ── VERY SMALL (iPhone SE, Galaxy Fold etc.) ── */
+@media (max-width: 380px) {
+    .login-card {
+        width: 96%;
+        padding: 28px 18px;
+    }
 
-#card h1 {
-    font-size: 50px;
-    line-height: 50px;
+    .login-card h1 {
+        font-size: 38px;
+        line-height: 38px;
+    }
+
+    .input-box input {
+        padding: 13px 12px;
+        font-size: 14px;
+    }
+
+    .login-btn {
+        font-size: 16px;
+        padding: 14px;
+    }
+
+    .social-icons button {
+        font-size: 13px;
+        padding: 10px 6px;
+    }
 }
