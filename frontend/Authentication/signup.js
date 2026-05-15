@@ -27,7 +27,9 @@ function socialComingSoon() {
   setTimeout(() => { errorEl.textContent = ''; }, 3000);
 }
 
-// ── Password strength checker ───────────────────────────
+// ── Password strength tracker ───────────────────────────
+let currentStrength = 0;
+
 document.getElementById('signup-password').addEventListener('input', (e) => {
   const val = e.target.value;
   const fill = document.getElementById('strength-fill');
@@ -40,13 +42,25 @@ document.getElementById('signup-password').addEventListener('input', (e) => {
   if (/[0-9]/.test(val)) strength++;
   if (/[^A-Za-z0-9]/.test(val)) strength++;
 
+  currentStrength = strength;
+
+  // Reset fair-warning flag when user edits the password
+  delete document.getElementById('signup-btn').dataset.fairWarned;
+
+  // Clear any lingering strength error
+  const errorEl = document.getElementById('error-msg');
+  if (errorEl.dataset.source === 'strength') {
+    errorEl.textContent = '';
+    delete errorEl.dataset.source;
+  }
+
   const levels = [
     { label: '', color: 'transparent', width: '0%' },
-    { label: 'Weak', color: '#e53935', width: '25%' },
-    { label: 'Fair', color: '#fb8c00', width: '50%' },
-    { label: 'Good', color: '#fdd835', width: '75%' },
-    { label: 'Strong', color: '#43a047', width: '90%' },
-    { label: 'Very Strong', color: '#1b5e20', width: '100%' },
+    { label: '⚠️ Weak — too easy to guess', color: '#e53935', width: '25%' },
+    { label: '💡 Fair — try adding numbers or symbols', color: '#fb8c00', width: '50%' },
+    { label: '👍 Good', color: '#fdd835', width: '75%' },
+    { label: '✅ Strong', color: '#43a047', width: '90%' },
+    { label: '🔒 Very Strong', color: '#1b5e20', width: '100%' },
   ];
 
   const level = levels[strength];
@@ -69,13 +83,36 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
 
   errorEl.style.color = '#e53935';
   errorEl.textContent = '';
+  delete errorEl.dataset.source;
 
-  // ── Client-side validation ────────────────────────────
+  // ── Basic field validation ────────────────────────────
   if (!name || !email || !password || !confirm)
     return (errorEl.textContent = 'All fields are required');
 
   if (password.length < 6)
     return (errorEl.textContent = 'Password must be at least 6 characters');
+
+  // ── Password strength enforcement ─────────────────────
+  if (currentStrength <= 1) {
+    // Weak — block entirely
+    errorEl.style.color = '#e53935';
+    errorEl.textContent = '🚫 Password is too weak. Add uppercase letters, numbers, or symbols.';
+    errorEl.dataset.source = 'strength';
+    document.getElementById('signup-password').focus();
+    return;
+  }
+
+  if (currentStrength === 2 && !btn.dataset.fairWarned) {
+    // Fair — warn on first attempt, allow on second
+    errorEl.style.color = '#fb8c00';
+    errorEl.textContent = '💡 Your password is fair. Consider making it stronger — or click Create Account again to proceed anyway.';
+    errorEl.dataset.source = 'strength';
+    btn.dataset.fairWarned = 'true';
+    return;
+  }
+
+  // Past strength check — clear the fair-warning flag
+  delete btn.dataset.fairWarned;
 
   if (password !== confirm)
     return (errorEl.textContent = 'Passwords do not match');
@@ -98,6 +135,7 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
     const data = await res.json();
 
     if (!res.ok) {
+      errorEl.style.color = '#e53935';
       errorEl.textContent = data.error || 'Registration failed. Please try again.';
       return;
     }
@@ -111,6 +149,7 @@ document.getElementById('signup-form').addEventListener('submit', async (e) => {
     }, 1500);
 
   } catch (err) {
+    errorEl.style.color = '#e53935';
     errorEl.textContent = 'Cannot reach server. Is the backend running?';
   } finally {
     btn.textContent = 'Create Account';
